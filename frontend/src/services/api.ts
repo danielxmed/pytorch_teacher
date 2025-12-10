@@ -1,4 +1,9 @@
-import type { Curriculum, Module, ValidationRequest, ValidationResponse, DocInfo } from '../types'
+import type { Curriculum, Module, ValidationRequest, ValidationResponse, DocInfo, CodeExecutionResult } from '../types'
+
+export interface CodeExecutionRequest {
+  code: string
+  timeout?: number
+}
 
 const API_BASE = '/api'
 
@@ -47,4 +52,11 @@ export const api = {
   // Documentation endpoints
   getDocInfo: (symbol: string): Promise<DocInfo> =>
     fetchJson(`${API_BASE}/docs/pytorch/${encodeURIComponent(symbol)}`),
+
+  // Code execution endpoint
+  executeCode: (request: CodeExecutionRequest): Promise<CodeExecutionResult> =>
+    fetchJson(`${API_BASE}/execute`, {
+      method: 'POST',
+      body: JSON.stringify(request),
+    }),
 }

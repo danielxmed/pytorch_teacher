@@ -4,11 +4,11 @@ Plataforma de aprendizado interativo de PyTorch com conteúdo teórico em format
 
 ## Visão Geral
 
-O PyTorch Academy oferece uma experiência de aprendizado imersiva onde você aprende PyTorch **fazendo**. O currículo cobre desde tensores básicos até Transformers, com código executável diretamente no navegador.
+O PyTorch Academy oferece uma experiência de aprendizado imersiva onde você aprende PyTorch **fazendo**. O currículo cobre desde tensores básicos até Transformers, com código executável diretamente na interface.
 
 ### Características
 
-- **Código Executável**: Execute Python/PyTorch diretamente no navegador com Pyodide
+- **PyTorch Real**: Código executa no backend com PyTorch completo (não é simulação)
 - **20 Módulos**: Currículo completo cobrindo fundamentos até arquiteturas avançadas
 - **Exercícios Práticos**: Validação automática com feedback instantâneo
 - **Progresso Salvo**: Seu avanço é salvo automaticamente no navegador
@@ -27,9 +27,11 @@ O PyTorch Academy oferece uma experiência de aprendizado imersiva onde você ap
 
 ### Backend
 
+> **Importante**: Requer Python 3.11 ou 3.12 (PyTorch não suporta Python 3.13 ainda)
+
 ```bash
 cd backend
-python -m venv venv
+python3.11 -m venv venv
 source venv/bin/activate  # Linux/Mac
 # ou: venv\Scripts\activate  # Windows
 pip install -r requirements.txt
@@ -97,6 +99,7 @@ python scripts/run-snippets.py
 
 ### Backend
 - FastAPI
+- PyTorch 2.x
 - Pydantic
 - python-frontmatter
 - httpx (proxy de documentação)
@@ -106,8 +109,21 @@ python scripts/run-snippets.py
 - Vite
 - Tailwind CSS
 - Monaco Editor
-- Pyodide (Python no browser)
 - Zustand (state management)
+
+## Arquitetura
+
+```
+┌─────────────────┐     HTTP      ┌─────────────────┐
+│    Frontend     │ ◄──────────► │     Backend     │
+│   (React/TS)    │              │    (FastAPI)    │
+│                 │              │                 │
+│  Monaco Editor  │  POST /api/  │  PyTorch 2.x    │
+│  Code Cells     │  execute     │  Code Execution │
+└─────────────────┘              └─────────────────┘
+```
+
+O código Python é enviado ao backend e executado em um subprocess com acesso ao PyTorch real.
 
 ## Licença
 

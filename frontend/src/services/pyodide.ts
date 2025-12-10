@@ -1,137 +1,67 @@
 import type { CodeExecutionResult } from '../types'
+import { api } from './api'
 
-// Pyodide instance type (simplified)
-interface PyodideInterface {
-  runPythonAsync: (code: string) => Promise<unknown>
-  loadPackage: (packages: string | string[]) => Promise<void>
-  globals: {
-    get: (name: string) => unknown
-  }
-}
+let backendReady = false
+let backendChecking: Promise<boolean> | null = null
 
-declare global {
-  interface Window {
-    loadPyodide: (config?: { indexURL?: string }) => Promise<PyodideInterface>
-  }
-}
+export async function loadPyodideInstance(): Promise<void> {
+  // Check if backend is available
+  if (backendReady) return
 
-let pyodideInstance: PyodideInterface | null = null
-let pyodideLoading: Promise<PyodideInterface> | null = null
-
-const PYODIDE_CDN = 'https://cdn.jsdelivr.net/pyodide/v0.25.0/full/'
-
-export async function loadPyodideInstance(): Promise<PyodideInterface> {
-  if (pyodideInstance) {
-    return pyodideInstance
+  if (backendChecking) {
+    await backendChecking
+    return
   }
 
-  if (pyodideLoading) {
-    return pyodideLoading
-  }
-
-  pyodideLoading = (async () => {
-    // Load Pyodide script if not already loaded
-    if (!window.loadPyodide) {
-      await new Promise<void>((resolve, reject) => {
-        const script = document.createElement('script')
-        script.src = `${PYODIDE_CDN}pyodide.js`
-        script.onload = () => resolve()
-        script.onerror = () => reject(new Error('Failed to load Pyodide'))
-        document.head.appendChild(script)
-      })
+  backendChecking = (async () => {
+    try {
+      // Test backend connectivity with a simple request
+      const response = await fetch('/health')
+      if (response.ok) {
+        backendReady = true
+        return true
+      }
+      throw new Error('Backend not available')
+    } catch {
+      throw new Error('Failed to connect to Python backend. Make sure the server is running.')
     }
-
-    // Initialize Pyodide
-    const pyodide = await window.loadPyodide({
-      indexURL: PYODIDE_CDN,
-    })
-
-    // Pre-load numpy (required for torch-like operations)
-    await pyodide.loadPackage(['numpy', 'micropip'])
-
-    // Setup output capture
-    await pyodide.runPythonAsync(`
-import sys
-from io import StringIO
-
-class OutputCapture:
-    def __init__(self):
-        self.stdout = StringIO()
-        self.stderr = StringIO()
-        self._old_stdout = None
-        self._old_stderr = None
-
-    def __enter__(self):
-        self._old_stdout = sys.stdout
-        self._old_stderr = sys.stderr
-        sys.stdout = self.stdout
-        sys.stderr = self.stderr
-        return self
-
-    def __exit__(self, *args):
-        sys.stdout = self._old_stdout
-        sys.stderr = self._old_stderr
-
-    def get_output(self):
-        return self.stdout.getvalue(), self.stderr.getvalue()
-
-_output_capture = OutputCapture()
-`)
-
-    pyodideInstance = pyodide
-    return pyodide
   })()
 
-  return pyodideLoading
+  await backendChecking
 }
 
 export async function executePython(code: string): Promise<CodeExecutionResult> {
   const startTime = performance.now()
 
   try {
-    const pyodide = await loadPyodideInstance()
+    if (!backendReady) {
+      await loadPyodideInstance()
+    }
 
-    // Execute code with output capture
-    const wrappedCode = `
-with _output_capture:
-    _result = None
-    try:
-        exec('''${code.replace(/'/g, "\\'")}''')
-    except Exception as e:
-        import traceback
-        print(traceback.format_exc(), file=sys.stderr)
-        raise
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const result: any = await api.executeCode({ code, timeout: 30 })
 
-_stdout, _stderr = _output_capture.get_output()
-_output_capture.stdout = __import__('io').StringIO()
-_output_capture.stderr = __import__('io').StringIO()
-(_stdout, _stderr)
-`
-
-    const result = await pyodide.runPythonAsync(wrappedCode) as [string, string]
-    const [stdout, stderr] = result
-
-    const executionTime = performance.now() - startTime
+    // Backend returns execution_time in seconds, convert to ms
+    const execTime = result.execution_time || result.executionTime
 
     return {
-      success: true,
-      stdout,
-      stderr,
-      executionTime,
+      success: result.success,
+      stdout: result.stdout || '',
+      stderr: result.stderr || '',
+      error: result.error,
+      executionTime: execTime ? execTime * 1000 : performance.now() - startTime,
     }
   } catch (error) {
-    const executionTime = performance.now() - startTime
-
     return {
       success: false,
       stdout: '',
       stderr: '',
       error: error instanceof Error ? error.message : String(error),
-      executionTime,
+      executionTime: performance.now() - startTime,
     }
   }
 }
 
 export async function isPyodideReady(): Promise<boolean> {
-  return pyodideInstance !== null
+  return backendReady
 }
