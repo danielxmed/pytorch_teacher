@@ -1,0 +1,177 @@
+---
+title: "Layers Built-in"
+order: 9
+prerequisites: ["08-nn-module"]
+estimatedMinutes: 45
+pytorchVersion: "2.2"
+---
+
+# Layers Built-in
+
+PyTorch oferece dezenas de camadas prontas para uso. Vamos explorar as mais importantes.
+
+## Linear (Fully Connected)
+
+<CodeCell id="linear-layer">
+import torch
+import torch.nn as nn
+
+# Linear: y = xW^T + b
+layer = nn.Linear(in_features=10, out_features=5)
+
+x = torch.randn(32, 10)  # Batch de 32, 10 features
+y = layer(x)
+
+print(f"Input: {x.shape}")
+print(f"Output: {y.shape}")
+print(f"Weight shape: {layer.weight.shape}")
+print(f"Bias shape: {layer.bias.shape}")
+</CodeCell>
+
+<DocRef symbol="torch.nn.Linear" />
+
+## Conv2d (Convolução 2D)
+
+<CodeCell id="conv2d">
+import torch.nn as nn
+
+# Conv2d para imagens
+conv = nn.Conv2d(
+    in_channels=3,      # RGB
+    out_channels=16,    # Número de filtros
+    kernel_size=3,      # Filtro 3x3
+    stride=1,
+    padding=1           # Mantém dimensão espacial
+)
+
+# Input: (batch, channels, height, width)
+x = torch.randn(8, 3, 32, 32)
+y = conv(x)
+
+print(f"Input: {x.shape}")
+print(f"Output: {y.shape}")
+print(f"Kernel shape: {conv.weight.shape}")
+</CodeCell>
+
+<DocRef symbol="torch.nn.Conv2d" />
+
+## BatchNorm
+
+<CodeCell id="batchnorm">
+import torch.nn as nn
+
+# BatchNorm1d para dados 2D (batch, features)
+bn1d = nn.BatchNorm1d(64)
+
+# BatchNorm2d para imagens (batch, channels, h, w)
+bn2d = nn.BatchNorm2d(16)
+
+x_1d = torch.randn(32, 64)
+x_2d = torch.randn(8, 16, 28, 28)
+
+print(f"BatchNorm1d: {x_1d.shape} -> {bn1d(x_1d).shape}")
+print(f"BatchNorm2d: {x_2d.shape} -> {bn2d(x_2d).shape}")
+</CodeCell>
+
+## Dropout
+
+<CodeCell id="dropout">
+import torch.nn as nn
+
+dropout = nn.Dropout(p=0.5)  # 50% de dropout
+
+x = torch.ones(10)
+print("Input:", x)
+
+# Em modo treino: aplica dropout
+dropout.train()
+print("Train mode:", dropout(x))
+
+# Em modo eval: não aplica dropout
+dropout.eval()
+print("Eval mode:", dropout(x))
+</CodeCell>
+
+## Pooling
+
+<CodeCell id="pooling">
+import torch.nn as nn
+
+# Max Pooling
+maxpool = nn.MaxPool2d(kernel_size=2, stride=2)
+
+# Average Pooling
+avgpool = nn.AvgPool2d(kernel_size=2, stride=2)
+
+# Adaptive Pooling (output fixo)
+adaptive = nn.AdaptiveAvgPool2d((1, 1))  # Global Average Pooling
+
+x = torch.randn(1, 16, 28, 28)
+print(f"Input: {x.shape}")
+print(f"MaxPool2d: {maxpool(x).shape}")
+print(f"AvgPool2d: {avgpool(x).shape}")
+print(f"AdaptiveAvgPool2d: {adaptive(x).shape}")
+</CodeCell>
+
+## Embedding
+
+<CodeCell id="embedding">
+import torch.nn as nn
+
+# Para NLP: converter índices em vetores
+embedding = nn.Embedding(
+    num_embeddings=1000,  # Tamanho do vocabulário
+    embedding_dim=128     # Dimensão do embedding
+)
+
+# Input: índices inteiros
+indices = torch.tensor([1, 5, 3, 100, 42])
+vectors = embedding(indices)
+
+print(f"Input indices: {indices.shape}")
+print(f"Output vectors: {vectors.shape}")
+</CodeCell>
+
+## RNN, LSTM, GRU
+
+<CodeCell id="recurrent">
+import torch.nn as nn
+
+# LSTM
+lstm = nn.LSTM(
+    input_size=32,      # Features por timestep
+    hidden_size=64,     # Tamanho do hidden state
+    num_layers=2,       # Camadas empilhadas
+    batch_first=True    # Input: (batch, seq, features)
+)
+
+# Input: (batch, sequence_length, input_size)
+x = torch.randn(16, 100, 32)
+output, (hidden, cell) = lstm(x)
+
+print(f"Input: {x.shape}")
+print(f"Output: {output.shape}")
+print(f"Hidden: {hidden.shape}")
+print(f"Cell: {cell.shape}")
+</CodeCell>
+
+## Exercícios
+
+<Exercise id="ex-conv-output" difficulty="medium">
+Calcule o output shape de uma Conv2d com input (1, 3, 64, 64), kernel_size=5, stride=2, padding=0. Crie a convolução e verifique.
+</Exercise>
+
+<Exercise id="ex-mlp" difficulty="medium">
+Crie um MLP (Multi-Layer Perceptron) com: Linear(784, 256), ReLU, Dropout(0.2), Linear(256, 10). Use nn.Sequential.
+</Exercise>
+
+## Resumo
+
+Camadas essenciais do PyTorch:
+- `nn.Linear` - Fully connected
+- `nn.Conv2d` - Convolução para imagens
+- `nn.BatchNorm` - Normalização
+- `nn.Dropout` - Regularização
+- `nn.MaxPool2d`, `nn.AvgPool2d` - Pooling
+- `nn.Embedding` - Para NLP
+- `nn.LSTM`, `nn.GRU` - Redes recorrentes

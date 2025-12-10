@@ -1,0 +1,154 @@
+---
+title: "Dataset e DataLoader"
+order: 13
+prerequisites: ["12-training-loop"]
+estimatedMinutes: 45
+pytorchVersion: "2.2"
+---
+
+# Dataset e DataLoader
+
+PyTorch fornece abstrações poderosas para carregar dados de forma eficiente.
+
+## Dataset Básico
+
+<CodeCell id="basic-dataset">
+import torch
+from torch.utils.data import Dataset, DataLoader
+
+class SimpleDataset(Dataset):
+    def __init__(self, X, y):
+        self.X = X
+        self.y = y
+
+    def __len__(self):
+        return len(self.X)
+
+    def __getitem__(self, idx):
+        return self.X[idx], self.y[idx]
+
+# Criar dataset
+X = torch.randn(1000, 10)
+y = torch.randint(0, 2, (1000,))
+dataset = SimpleDataset(X, y)
+
+print(f"Dataset size: {len(dataset)}")
+print(f"Sample: X shape={dataset[0][0].shape}, y={dataset[0][1]}")
+</CodeCell>
+
+<DocRef symbol="torch.utils.data.Dataset" />
+
+## DataLoader
+
+<CodeCell id="dataloader">
+from torch.utils.data import DataLoader
+
+loader = DataLoader(
+    dataset,
+    batch_size=32,
+    shuffle=True,
+    num_workers=0,  # Usar 0 para Pyodide
+    drop_last=False
+)
+
+print(f"Número de batches: {len(loader)}")
+
+for batch_idx, (X_batch, y_batch) in enumerate(loader):
+    print(f"Batch {batch_idx}: X={X_batch.shape}, y={y_batch.shape}")
+    if batch_idx >= 2:
+        break
+</CodeCell>
+
+<DocRef symbol="torch.utils.data.DataLoader" />
+
+## TensorDataset (Atalho)
+
+<CodeCell id="tensordataset">
+from torch.utils.data import TensorDataset, DataLoader
+
+X = torch.randn(500, 20)
+y = torch.randint(0, 3, (500,))
+
+# Forma rápida de criar dataset
+dataset = TensorDataset(X, y)
+loader = DataLoader(dataset, batch_size=64, shuffle=True)
+
+for X_batch, y_batch in loader:
+    print(f"Batch: {X_batch.shape}, {y_batch.shape}")
+    break
+</CodeCell>
+
+## Dataset Customizado Completo
+
+<CodeCell id="custom-dataset">
+import torch
+from torch.utils.data import Dataset
+
+class ImageDataset(Dataset):
+    """Dataset simulando imagens."""
+
+    def __init__(self, num_samples, img_size=32, num_classes=10, transform=None):
+        self.num_samples = num_samples
+        self.img_size = img_size
+        self.num_classes = num_classes
+        self.transform = transform
+
+        # Simular dados
+        self.images = torch.randn(num_samples, 3, img_size, img_size)
+        self.labels = torch.randint(0, num_classes, (num_samples,))
+
+    def __len__(self):
+        return self.num_samples
+
+    def __getitem__(self, idx):
+        image = self.images[idx]
+        label = self.labels[idx]
+
+        if self.transform:
+            image = self.transform(image)
+
+        return image, label
+
+# Usar
+dataset = ImageDataset(1000, img_size=28, num_classes=10)
+print(f"Dataset: {len(dataset)} imagens")
+print(f"Sample shape: {dataset[0][0].shape}")
+</CodeCell>
+
+## Dividindo Datasets
+
+<CodeCell id="split-dataset">
+from torch.utils.data import random_split, Subset
+
+# Dataset completo
+full_dataset = TensorDataset(torch.randn(1000, 10), torch.randint(0, 2, (1000,)))
+
+# Método 1: random_split
+train_size = int(0.8 * len(full_dataset))
+val_size = len(full_dataset) - train_size
+train_dataset, val_dataset = random_split(full_dataset, [train_size, val_size])
+
+print(f"Train: {len(train_dataset)}, Val: {len(val_dataset)}")
+
+# Método 2: Subset com índices específicos
+indices = list(range(100))
+subset = Subset(full_dataset, indices)
+print(f"Subset: {len(subset)}")
+</CodeCell>
+
+## Exercícios
+
+<Exercise id="ex-custom-dataset" difficulty="medium">
+Crie um Dataset customizado que retorna (x, x²) para x de 0 a 99.
+</Exercise>
+
+<Exercise id="ex-dataloader-config" difficulty="easy">
+Crie um DataLoader com batch_size=16 e shuffle=True.
+</Exercise>
+
+## Resumo
+
+- `Dataset`: Define como acessar dados (__len__, __getitem__)
+- `DataLoader`: Itera em batches, shuffle, parallel loading
+- `TensorDataset`: Atalho para tensores
+- `random_split`: Divide dataset em treino/validação

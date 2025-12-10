@@ -1,0 +1,145 @@
+---
+title: "Otimizadores"
+order: 11
+prerequisites: ["08-nn-module", "10-activations-loss"]
+estimatedMinutes: 40
+pytorchVersion: "2.2"
+---
+
+# Otimizadores
+
+Otimizadores atualizam os parâmetros do modelo para minimizar a loss. PyTorch oferece vários algoritmos de otimização.
+
+## SGD (Stochastic Gradient Descent)
+
+<CodeCell id="sgd">
+import torch
+import torch.nn as nn
+import torch.optim as optim
+
+model = nn.Linear(10, 2)
+optimizer = optim.SGD(model.parameters(), lr=0.01)
+
+print("Parâmetros do otimizador:")
+print(f"  Learning rate: {optimizer.defaults['lr']}")
+print(f"  Momentum: {optimizer.defaults.get('momentum', 0)}")
+
+# SGD com momentum
+optimizer_mom = optim.SGD(model.parameters(), lr=0.01, momentum=0.9)
+print(f"\nCom momentum: {optimizer_mom.defaults['momentum']}")
+</CodeCell>
+
+<DocRef symbol="torch.optim.SGD" />
+
+## Adam (Adaptive Moment Estimation)
+
+<CodeCell id="adam">
+import torch.optim as optim
+
+model = nn.Linear(10, 2)
+optimizer = optim.Adam(model.parameters(), lr=0.001)
+
+print("Adam defaults:")
+for key, value in optimizer.defaults.items():
+    print(f"  {key}: {value}")
+</CodeCell>
+
+<Callout type="tip">
+Adam é frequentemente uma boa escolha inicial. Combina momentum com learning rates adaptativos por parâmetro.
+</Callout>
+
+## Outros Otimizadores Populares
+
+<CodeCell id="other-optimizers">
+import torch.optim as optim
+
+model = nn.Linear(10, 2)
+
+# AdamW (Adam com weight decay corrigido)
+adamw = optim.AdamW(model.parameters(), lr=0.001, weight_decay=0.01)
+
+# RMSprop
+rmsprop = optim.RMSprop(model.parameters(), lr=0.01)
+
+# Adagrad
+adagrad = optim.Adagrad(model.parameters(), lr=0.01)
+
+print("Otimizadores criados!")
+</CodeCell>
+
+## O Loop de Otimização
+
+<CodeCell id="optimization-loop">
+import torch
+import torch.nn as nn
+import torch.optim as optim
+
+# Dados dummy
+X = torch.randn(100, 10)
+y = torch.randint(0, 2, (100,))
+
+# Modelo e otimizador
+model = nn.Linear(10, 2)
+optimizer = optim.Adam(model.parameters(), lr=0.01)
+criterion = nn.CrossEntropyLoss()
+
+# Loop de treino
+for epoch in range(5):
+    # 1. Forward pass
+    outputs = model(X)
+    loss = criterion(outputs, y)
+
+    # 2. Zero gradients (IMPORTANTE!)
+    optimizer.zero_grad()
+
+    # 3. Backward pass
+    loss.backward()
+
+    # 4. Update parameters
+    optimizer.step()
+
+    print(f"Epoch {epoch}: Loss = {loss.item():.4f}")
+</CodeCell>
+
+<Callout type="warning">
+Sempre chame `optimizer.zero_grad()` antes de `loss.backward()`! Caso contrário, os gradientes acumulam.
+</Callout>
+
+## Learning Rate Schedulers
+
+<CodeCell id="schedulers">
+import torch.optim as optim
+from torch.optim.lr_scheduler import StepLR, ReduceLROnPlateau
+
+model = nn.Linear(10, 2)
+optimizer = optim.Adam(model.parameters(), lr=0.01)
+
+# StepLR: reduz LR a cada N epochs
+scheduler = StepLR(optimizer, step_size=10, gamma=0.1)
+print("StepLR: reduz LR em 10x a cada 10 epochs")
+
+# Simular epochs
+for epoch in range(25):
+    # ... treino ...
+    scheduler.step()
+    if epoch % 5 == 0:
+        print(f"Epoch {epoch}: LR = {scheduler.get_last_lr()[0]:.6f}")
+</CodeCell>
+
+## Exercícios
+
+<Exercise id="ex-optimizer-setup" difficulty="easy">
+Crie um otimizador Adam para um modelo com lr=0.001 e weight_decay=0.01.
+</Exercise>
+
+<Exercise id="ex-train-step" difficulty="medium">
+Complete um passo de treinamento: zero_grad, forward, loss, backward, step.
+</Exercise>
+
+## Resumo
+
+- SGD: Simples, com momentum para estabilidade
+- Adam: Adaptativo, boa escolha inicial
+- AdamW: Adam com weight decay correto
+- Sempre: zero_grad → forward → loss → backward → step
+- Schedulers ajustam o learning rate durante o treino

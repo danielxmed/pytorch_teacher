@@ -1,0 +1,254 @@
+---
+title: "Manipulação de Shape"
+order: 3
+prerequisites: ["01-tensors", "02-tensor-operations"]
+estimatedMinutes: 45
+pytorchVersion: "2.2"
+---
+
+# Manipulação de Shape
+
+Em deep learning, você frequentemente precisa reorganizar tensores para que tenham o shape correto para uma operação. PyTorch oferece várias funções para isso.
+
+## view() e reshape()
+
+As funções mais comuns para mudar o shape de um tensor:
+
+<CodeCell id="view-reshape">
+import torch
+
+# Criar um tensor 1D com 12 elementos
+t = torch.arange(1, 13)
+print("Original:", t)
+print("Shape:", t.shape)
+
+# Reshape para 2D
+t_2d = t.view(3, 4)
+print("\nView (3, 4):\n", t_2d)
+
+# Reshape para 3D
+t_3d = t.view(2, 2, 3)
+print("\nView (2, 2, 3):\n", t_3d)
+
+# Usando -1 para inferir uma dimensão
+t_auto = t.view(4, -1)  # -1 = 12/4 = 3
+print("\nView (4, -1):\n", t_auto)
+</CodeCell>
+
+<Callout type="info">
+`view()` e `reshape()` são muito similares. A diferença principal é que `view()` requer que o tensor seja contíguo na memória, enquanto `reshape()` pode fazer uma cópia se necessário.
+</Callout>
+
+<DocRef symbol="torch.Tensor.view" />
+
+## flatten() e ravel()
+
+Para transformar qualquer tensor em 1D:
+
+<CodeCell id="flatten">
+import torch
+
+t = torch.tensor([[[1, 2], [3, 4]],
+                  [[5, 6], [7, 8]]])
+print("Original shape:", t.shape)
+print("Original:\n", t)
+
+# Flatten completo
+flat = t.flatten()
+print("\nFlatten:", flat)
+print("Shape:", flat.shape)
+
+# Flatten parcial (apenas algumas dimensões)
+partial = t.flatten(start_dim=1)  # Achata a partir da dim 1
+print("\nFlatten(start_dim=1):\n", partial)
+print("Shape:", partial.shape)
+</CodeCell>
+
+## squeeze() e unsqueeze()
+
+`squeeze()` remove dimensões de tamanho 1, `unsqueeze()` adiciona:
+
+<CodeCell id="squeeze-unsqueeze">
+import torch
+
+# Tensor com dimensões extras de tamanho 1
+t = torch.zeros(1, 3, 1, 4)
+print("Original shape:", t.shape)
+
+# Remove TODAS as dimensões de tamanho 1
+squeezed = t.squeeze()
+print("Squeeze all:", squeezed.shape)
+
+# Remove dimensão específica
+squeezed_0 = t.squeeze(0)  # Remove dim 0 se tamanho 1
+print("Squeeze(0):", squeezed_0.shape)
+
+# Adicionar dimensão
+t2 = torch.tensor([1, 2, 3])
+print("\nOriginal t2:", t2.shape)
+
+unsqueezed_0 = t2.unsqueeze(0)  # Adiciona dim no início
+print("Unsqueeze(0):", unsqueezed_0.shape, unsqueezed_0)
+
+unsqueezed_1 = t2.unsqueeze(1)  # Adiciona dim no final
+print("Unsqueeze(1):", unsqueezed_1.shape)
+print(unsqueezed_1)
+</CodeCell>
+
+<Callout type="tip">
+`unsqueeze(0)` é muito útil para adicionar uma dimensão de batch quando você tem um único exemplo.
+</Callout>
+
+## permute() e transpose()
+
+Para reordenar as dimensões de um tensor:
+
+<CodeCell id="permute-transpose">
+import torch
+
+# Tensor de imagem: (canais, altura, largura)
+img = torch.rand(3, 224, 224)
+print("Imagem original (C, H, W):", img.shape)
+
+# Converter para (altura, largura, canais) para visualização
+img_hwc = img.permute(1, 2, 0)
+print("Após permute(1, 2, 0) - (H, W, C):", img_hwc.shape)
+
+# transpose troca duas dimensões específicas
+t = torch.rand(2, 3, 4)
+print("\nOriginal:", t.shape)
+
+# Trocar dimensões 1 e 2
+t_trans = t.transpose(1, 2)
+print("Transpose(1, 2):", t_trans.shape)
+
+# Transposta de matriz 2D
+matrix = torch.tensor([[1, 2, 3],
+                       [4, 5, 6]])
+print("\nMatrix:\n", matrix)
+print("Matrix.T:\n", matrix.T)
+</CodeCell>
+
+<Callout type="important">
+Em visão computacional, você frequentemente precisa converter entre:
+- (Batch, Canais, Altura, Largura) - formato PyTorch
+- (Batch, Altura, Largura, Canais) - formato TensorFlow/numpy para visualização
+</Callout>
+
+## expand() e repeat()
+
+Para criar tensores maiores repetindo valores:
+
+<CodeCell id="expand-repeat">
+import torch
+
+t = torch.tensor([[1, 2, 3]])
+print("Original:", t.shape)
+print(t)
+
+# expand() cria uma VIEW (sem copiar memória)
+expanded = t.expand(3, 3)
+print("\nExpand (3, 3):")
+print(expanded)
+print("Shape:", expanded.shape)
+
+# repeat() COPIA os dados
+repeated = t.repeat(3, 2)  # Repete 3x na dim 0, 2x na dim 1
+print("\nRepeat (3, 2):")
+print(repeated)
+print("Shape:", repeated.shape)
+</CodeCell>
+
+<Callout type="warning">
+`expand()` é mais eficiente pois não copia memória, mas o tensor resultante compartilha dados com o original. Use `repeat()` quando precisar de uma cópia independente.
+</Callout>
+
+## cat() e stack()
+
+Para combinar múltiplos tensores:
+
+<CodeCell id="cat-stack">
+import torch
+
+a = torch.tensor([[1, 2], [3, 4]])
+b = torch.tensor([[5, 6], [7, 8]])
+print("a:\n", a)
+print("b:\n", b)
+
+# cat: concatena ao longo de dimensão existente
+cat_0 = torch.cat([a, b], dim=0)
+print("\ncat dim=0:\n", cat_0)
+print("Shape:", cat_0.shape)
+
+cat_1 = torch.cat([a, b], dim=1)
+print("\ncat dim=1:\n", cat_1)
+print("Shape:", cat_1.shape)
+
+# stack: cria nova dimensão
+stacked = torch.stack([a, b], dim=0)
+print("\nstack dim=0:\n", stacked)
+print("Shape:", stacked.shape)
+</CodeCell>
+
+<DocRef symbol="torch.cat" />
+
+## split() e chunk()
+
+Para dividir tensores:
+
+<CodeCell id="split-chunk">
+import torch
+
+t = torch.arange(12).reshape(4, 3)
+print("Original:\n", t)
+
+# split: divide em tamanhos específicos
+splits = torch.split(t, 2, dim=0)  # Divide em grupos de 2 linhas
+print("\nSplit em grupos de 2:")
+for i, s in enumerate(splits):
+    print(f"  Parte {i}: shape {s.shape}")
+    print(s)
+
+# chunk: divide em N partes iguais
+chunks = torch.chunk(t, 2, dim=0)  # Divide em 2 partes
+print("\nChunk em 2 partes:")
+for i, c in enumerate(chunks):
+    print(f"  Parte {i}: shape {c.shape}")
+</CodeCell>
+
+## Exercícios
+
+<Exercise id="ex-reshape" difficulty="easy">
+Dado um tensor 1D `t = torch.arange(24)`, reshape para shape (2, 3, 4). Armazene em `reshaped`.
+</Exercise>
+
+<Exercise id="ex-batch-dim" difficulty="medium">
+Dado um tensor de "imagem" `img = torch.rand(3, 32, 32)` (canais, altura, largura), adicione uma dimensão de batch no início para criar shape (1, 3, 32, 32). Armazene em `batched`.
+</Exercise>
+
+<Exercise id="ex-permute" difficulty="medium">
+Converta um tensor de shape (batch, canais, altura, largura) para (batch, altura, largura, canais). Dado `t = torch.rand(16, 3, 224, 224)`, crie `t_nhwc` com shape (16, 224, 224, 3).
+</Exercise>
+
+<Exercise id="ex-combine" difficulty="hard">
+Você tem 3 tensores 2D de mesmo shape. Empilhe-os para criar um batch e então achate as duas últimas dimensões. Dado:
+```
+a = torch.ones(2, 3)
+b = torch.ones(2, 3) * 2
+c = torch.ones(2, 3) * 3
+```
+Crie `combined` com shape (3, 6).
+</Exercise>
+
+## Resumo
+
+Neste módulo você aprendeu:
+- `view()` e `reshape()` para mudar shapes
+- `flatten()` para linearizar tensores
+- `squeeze()` e `unsqueeze()` para adicionar/remover dimensões
+- `permute()` e `transpose()` para reordenar dimensões
+- `expand()` e `repeat()` para repetir valores
+- `cat()` e `stack()` para combinar tensores
+- `split()` e `chunk()` para dividir tensores
+
+No próximo módulo, vamos ver como tensores PyTorch se relacionam com NumPy!

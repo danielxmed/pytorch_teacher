@@ -1,0 +1,18 @@
+{
+  "ex-lstm-output": {
+    "starterCode": "import torch\nimport torch.nn as nn\n\n# Crie LSTM com input_size=64, hidden_size=128\nlstm = \n\nx = torch.randn(8, 50, 64)  # (batch, seq, features)\noutput, (hidden, cell) = lstm(x)\n\nprint(f'Output shape: {output.shape}')\nprint(f'Hidden shape: {hidden.shape}')",
+    "hints": [
+      "nn.LSTM(input_size=64, hidden_size=128, batch_first=True)",
+      "Output shape será (8, 50, 128)",
+      "Hidden shape será (1, 8, 128)"
+    ],
+    "validation": {
+      "type": "assert",
+      "tests": [
+        "assert output.shape == torch.Size([8, 50, 128]), f'Output shape incorreto: {output.shape}'",
+        "assert hidden.shape == torch.Size([1, 8, 128]), f'Hidden shape incorreto: {hidden.shape}'"
+      ]
+    },
+    "solution": "lstm = nn.LSTM(input_size=64, hidden_size=128, batch_first=True)"
+  }
+}

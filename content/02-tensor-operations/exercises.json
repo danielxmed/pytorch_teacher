@@ -1,0 +1,69 @@
+{
+  "ex-arithmetic": {
+    "starterCode": "import torch\n\na = torch.tensor([1, 2, 3, 4])\nb = torch.tensor([5, 6, 7, 8])\n\n# Calcule o dot product manualmente (soma dos produtos)\nresult = ",
+    "hints": [
+      "Primeiro multiplique os tensores elemento a elemento com *",
+      "Depois some todos os elementos com .sum()",
+      "result deveria ser 1*5 + 2*6 + 3*7 + 4*8 = 70"
+    ],
+    "validation": {
+      "type": "assert",
+      "tests": [
+        "assert result == 70, f'Resultado incorreto: esperado 70, obtido {result}'",
+        "assert isinstance(result, (int, torch.Tensor)), 'Resultado deve ser um número ou tensor'"
+      ]
+    },
+    "solution": "result = (a * b).sum()"
+  },
+  "ex-broadcasting": {
+    "starterCode": "import torch\n\nmatrix = torch.tensor([[1., 2., 3.], [4., 5., 6.]])\n\n# Normalize cada linha para somar 1\nnormalized = ",
+    "hints": [
+      "Calcule a soma de cada linha com matrix.sum(dim=1, keepdim=True)",
+      "Use keepdim=True para manter as dimensões compatíveis com broadcasting",
+      "Divida a matriz pela soma das linhas"
+    ],
+    "validation": {
+      "type": "assert",
+      "tests": [
+        "assert normalized.shape == torch.Size([2, 3]), f'Shape incorreto: esperado (2, 3), obtido {tuple(normalized.shape)}'",
+        "assert torch.allclose(normalized.sum(dim=1), torch.ones(2)), 'Cada linha deveria somar 1'"
+      ]
+    },
+    "solution": "normalized = matrix / matrix.sum(dim=1, keepdim=True)"
+  },
+  "ex-slicing": {
+    "starterCode": "import torch\n\nt = torch.arange(1, 17).reshape(4, 4)\nprint('Tensor original:')\nprint(t)\n\n# Extraia a submatriz 2x2 central\ncenter = ",
+    "hints": [
+      "Para uma matriz 4x4, o centro são as linhas 1 e 2, colunas 1 e 2",
+      "Use slicing: t[start:end, start:end]",
+      "Lembre-se que índices começam em 0 e o end é exclusivo"
+    ],
+    "validation": {
+      "type": "assert",
+      "tests": [
+        "assert center.shape == torch.Size([2, 2]), f'Shape incorreto: esperado (2, 2), obtido {tuple(center.shape)}'",
+        "assert center[0, 0].item() == 6, f'Elemento [0,0] incorreto: esperado 6, obtido {center[0,0].item()}'",
+        "assert center[1, 1].item() == 11, f'Elemento [1,1] incorreto: esperado 11, obtido {center[1,1].item()}'"
+      ]
+    },
+    "solution": "center = t[1:3, 1:3]"
+  },
+  "ex-mask": {
+    "starterCode": "import torch\n\ntorch.manual_seed(42)  # Para reprodutibilidade\nt = torch.randn(5, 5)\nprint('Tensor original:')\nprint(t)\n\n# Substitua valores negativos por zero\nclipped = ",
+    "hints": [
+      "Primeiro, faça uma cópia do tensor com t.clone()",
+      "Crie uma máscara booleana: mask = clipped < 0",
+      "Use indexação com a máscara: clipped[mask] = 0",
+      "Alternativamente, use torch.clamp(t, min=0)"
+    ],
+    "validation": {
+      "type": "assert",
+      "tests": [
+        "assert clipped.shape == torch.Size([5, 5]), f'Shape incorreto: esperado (5, 5), obtido {tuple(clipped.shape)}'",
+        "assert (clipped >= 0).all(), 'Todos os valores deveriam ser >= 0'",
+        "assert clipped.min() == 0 or t.min() >= 0, 'Os valores negativos deveriam virar 0'"
+      ]
+    },
+    "solution": "clipped = t.clone()\nclipped[clipped < 0] = 0"
+  }
+}

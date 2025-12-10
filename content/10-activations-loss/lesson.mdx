@@ -1,0 +1,142 @@
+---
+title: "Funções de Ativação e Loss"
+order: 10
+prerequisites: ["08-nn-module", "09-builtin-layers"]
+estimatedMinutes: 40
+pytorchVersion: "2.2"
+---
+
+# Funções de Ativação e Loss
+
+Funções de ativação adicionam não-linearidade às redes neurais. Funções de loss medem quão erradas são as predições.
+
+## Funções de Ativação
+
+<CodeCell id="activations">
+import torch
+import torch.nn.functional as F
+
+x = torch.linspace(-3, 3, 7)
+print(f"x: {x.tolist()}")
+
+# ReLU: max(0, x)
+print(f"ReLU: {F.relu(x).tolist()}")
+
+# Sigmoid: 1 / (1 + e^-x) -> (0, 1)
+print(f"Sigmoid: {torch.sigmoid(x).tolist()}")
+
+# Tanh: -> (-1, 1)
+print(f"Tanh: {torch.tanh(x).tolist()}")
+
+# LeakyReLU: max(0.01x, x)
+print(f"LeakyReLU: {F.leaky_relu(x, 0.01).tolist()}")
+
+# Softmax: normaliza para probabilidades
+logits = torch.tensor([2.0, 1.0, 0.1])
+print(f"\nSoftmax de {logits.tolist()}: {F.softmax(logits, dim=0).tolist()}")
+</CodeCell>
+
+<DocRef symbol="torch.nn.functional.relu" />
+
+## Quando usar cada ativação
+
+| Ativação | Uso típico |
+|----------|------------|
+| ReLU | Hidden layers (padrão) |
+| Sigmoid | Output binário (probabilidade única) |
+| Softmax | Output multiclasse |
+| Tanh | Quando valores negativos importam |
+
+## Funções de Loss
+
+<CodeCell id="loss-functions">
+import torch
+import torch.nn as nn
+
+# MSE Loss - Regressão
+mse = nn.MSELoss()
+pred = torch.tensor([2.5, 0.0, 2.1])
+target = torch.tensor([3.0, -0.5, 2.0])
+print(f"MSE Loss: {mse(pred, target).item():.4f}")
+
+# Cross Entropy - Classificação multiclasse
+ce = nn.CrossEntropyLoss()
+logits = torch.tensor([[2.0, 1.0, 0.1]])  # (batch, classes)
+labels = torch.tensor([0])  # Índice da classe correta
+print(f"Cross Entropy: {ce(logits, labels).item():.4f}")
+
+# BCE Loss - Classificação binária
+bce = nn.BCELoss()
+probs = torch.tensor([0.9, 0.2, 0.8])
+targets = torch.tensor([1.0, 0.0, 1.0])
+print(f"BCE Loss: {bce(probs, targets).item():.4f}")
+
+# BCE with Logits (mais estável numericamente)
+bce_logits = nn.BCEWithLogitsLoss()
+logits_bin = torch.tensor([2.0, -2.0, 1.5])
+print(f"BCE with Logits: {bce_logits(logits_bin, targets).item():.4f}")
+</CodeCell>
+
+<DocRef symbol="torch.nn.CrossEntropyLoss" />
+
+## Cross Entropy em Detalhe
+
+<CodeCell id="cross-entropy-detail">
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+# Cross Entropy = Softmax + NLLLoss
+logits = torch.tensor([[2.0, 1.0, 0.1], [0.5, 2.0, 0.3]])
+labels = torch.tensor([0, 1])
+
+# Método 1: CrossEntropyLoss (recomendado)
+ce = nn.CrossEntropyLoss()
+loss1 = ce(logits, labels)
+
+# Método 2: Manual
+probs = F.softmax(logits, dim=1)
+loss2 = F.nll_loss(torch.log(probs), labels)
+
+print(f"CrossEntropyLoss: {loss1.item():.4f}")
+print(f"Manual (softmax + nll): {loss2.item():.4f}")
+print(f"Probabilidades:\n{probs}")
+</CodeCell>
+
+<Callout type="warning">
+`CrossEntropyLoss` espera **logits** (antes do softmax), não probabilidades! Aplicar softmax antes é um erro comum.
+</Callout>
+
+## Loss com Pesos de Classe
+
+<CodeCell id="weighted-loss">
+import torch
+import torch.nn as nn
+
+# Para datasets desbalanceados
+class_weights = torch.tensor([1.0, 2.0, 3.0])  # Classe 2 é 3x mais importante
+ce_weighted = nn.CrossEntropyLoss(weight=class_weights)
+
+logits = torch.randn(10, 3)
+labels = torch.randint(0, 3, (10,))
+
+loss = ce_weighted(logits, labels)
+print(f"Weighted CE Loss: {loss.item():.4f}")
+</CodeCell>
+
+## Exercícios
+
+<Exercise id="ex-activation-choice" difficulty="easy">
+Dado um tensor de logits para classificação de 5 classes, aplique softmax para obter probabilidades. Armazene em `probs`.
+</Exercise>
+
+<Exercise id="ex-loss-calc" difficulty="medium">
+Calcule manualmente o MSE entre `pred = [1, 2, 3]` e `target = [1, 2, 5]`. Verifique com nn.MSELoss.
+</Exercise>
+
+## Resumo
+
+- Ativações: ReLU (hidden), Sigmoid (binário), Softmax (multiclasse)
+- MSELoss: Regressão
+- CrossEntropyLoss: Classificação multiclasse (recebe logits!)
+- BCELoss/BCEWithLogitsLoss: Classificação binária

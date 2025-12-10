@@ -85,3 +85,20 @@ cython_debug/
 # MacOS
 .DS_Store
 workspace/
+
+# Node.js / Frontend
+node_modules/
+frontend/dist/
+frontend/.vite/
+*.log
+npm-debug.log*
+
+# IDE
+.idea/
+*.swp
+*.swo
+
+# Local env files
+.env.local
+.env.*.local
+backend/.env

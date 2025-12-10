@@ -1,0 +1,23 @@
+{
+  "ex-complete-loop": {
+    "starterCode": "import torch\nimport torch.nn as nn\nimport torch.optim as optim\n\n# Dados\ntorch.manual_seed(0)\nX_train = torch.randn(800, 10)\ny_train = (X_train.sum(1) > 0).long()\nX_val = torch.randn(200, 10)\ny_val = (X_val.sum(1) > 0).long()\n\n# Modelo\nmodel = nn.Sequential(\n    nn.Linear(10, 32),\n    nn.ReLU(),\n    nn.Linear(32, 2)\n)\n\ncriterion = nn.CrossEntropyLoss()\noptimizer = optim.Adam(model.parameters(), lr=0.01)\n\n# Complete o loop de treino para 3 epochs\nfor epoch in range(3):\n    # Treino\n    model.train()\n    # ... seu código aqui ...\n    \n    # Validação\n    model.eval()\n    # ... seu código aqui ...\n    \n    # Print (não modifique)\n    # print(f'Epoch {epoch+1}: Train Loss={train_loss:.4f}, Val Acc={val_acc:.4f}')",
+    "hints": [
+      "Treino: outputs = model(X_train), loss = criterion(outputs, y_train)",
+      "optimizer.zero_grad(), loss.backward(), optimizer.step()",
+      "Validação: with torch.no_grad(): val_outputs = model(X_val)",
+      "Calcule accuracy: (predicted == y_val).float().mean()"
+    ],
+    "validation": {
+      "type": "assert",
+      "tests": [
+        "model.eval()",
+        "with torch.no_grad():",
+        "    final_outputs = model(X_val)",
+        "    _, predicted = torch.max(final_outputs, 1)",
+        "    final_acc = (predicted == y_val).float().mean().item()",
+        "assert final_acc > 0.5, f'Accuracy muito baixa: {final_acc:.2f}. O modelo deve estar treinando.'"
+      ]
+    },
+    "solution": "for epoch in range(3):\n    model.train()\n    outputs = model(X_train)\n    train_loss = criterion(outputs, y_train)\n    optimizer.zero_grad()\n    train_loss.backward()\n    optimizer.step()\n    \n    model.eval()\n    with torch.no_grad():\n        val_outputs = model(X_val)\n        val_loss = criterion(val_outputs, y_val)\n        _, predicted = torch.max(val_outputs, 1)\n        val_acc = (predicted == y_val).float().mean()"
+  }
+}

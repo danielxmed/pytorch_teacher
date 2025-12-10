@@ -1,0 +1,34 @@
+{
+  "ex-activation-choice": {
+    "starterCode": "import torch\nimport torch.nn.functional as F\n\nlogits = torch.tensor([2.0, 1.0, 0.5, -1.0, 3.0])\n\n# Aplique softmax para obter probabilidades\nprobs = \n\nprint(f'Probabilidades: {probs}')\nprint(f'Soma: {probs.sum().item()}')",
+    "hints": [
+      "Use F.softmax(logits, dim=0) para 1D",
+      "As probabilidades devem somar 1"
+    ],
+    "validation": {
+      "type": "assert",
+      "tests": [
+        "assert probs.shape == torch.Size([5]), 'Shape deve ser (5,)'",
+        "assert abs(probs.sum().item() - 1.0) < 1e-5, 'Probabilidades devem somar 1'",
+        "assert (probs >= 0).all(), 'Todas probabilidades devem ser >= 0'"
+      ]
+    },
+    "solution": "probs = F.softmax(logits, dim=0)"
+  },
+  "ex-loss-calc": {
+    "starterCode": "import torch\nimport torch.nn as nn\n\npred = torch.tensor([1.0, 2.0, 3.0])\ntarget = torch.tensor([1.0, 2.0, 5.0])\n\n# Calcule MSE manualmente: mean((pred - target)²)\nmanual_mse = \n\n# Verifique com nn.MSELoss\nmse_loss = nn.MSELoss()\nauto_mse = mse_loss(pred, target)\n\nprint(f'Manual: {manual_mse}')\nprint(f'Auto: {auto_mse.item()}')",
+    "hints": [
+      "MSE = mean((1-1)² + (2-2)² + (3-5)²)",
+      "MSE = (0 + 0 + 4) / 3 = 4/3 ≈ 1.333"
+    ],
+    "validation": {
+      "type": "assert",
+      "tests": [
+        "expected = ((pred - target) ** 2).mean().item()",
+        "manual_val = manual_mse.item() if hasattr(manual_mse, 'item') else manual_mse",
+        "assert abs(manual_val - expected) < 1e-5, f'MSE incorreto: esperado {expected:.4f}'"
+      ]
+    },
+    "solution": "manual_mse = ((pred - target) ** 2).mean()"
+  }
+}

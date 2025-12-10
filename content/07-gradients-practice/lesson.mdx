@@ -1,0 +1,213 @@
+---
+title: "Gradientes na Prática"
+order: 7
+prerequisites: ["05-autograd-intro", "06-computational-graph"]
+estimatedMinutes: 50
+pytorchVersion: "2.2"
+---
+
+# Gradientes na Prática
+
+Neste módulo, vamos consolidar o conhecimento de autograd com exemplos práticos e comparações com cálculo manual de derivadas.
+
+## Verificando Gradientes Manualmente
+
+Vamos calcular gradientes de funções conhecidas e comparar com o autograd:
+
+<CodeCell id="verify-gradients">
+import torch
+
+# f(x) = x³ - 2x² + 3x - 1
+# f'(x) = 3x² - 4x + 3
+
+x = torch.tensor([2.0], requires_grad=True)
+
+# PyTorch
+y = x**3 - 2*x**2 + 3*x - 1
+y.backward()
+pytorch_grad = x.grad.item()
+
+# Cálculo manual: f'(2) = 3(4) - 4(2) + 3 = 12 - 8 + 3 = 7
+manual_grad = 3*2**2 - 4*2 + 3
+
+print(f"PyTorch: {pytorch_grad}")
+print(f"Manual:  {manual_grad}")
+print(f"Iguais: {pytorch_grad == manual_grad}")
+</CodeCell>
+
+## Gradientes de Funções Vetoriais
+
+<CodeCell id="vector-gradients">
+import torch
+
+# Função: f(x) = sum(x²) para x ∈ R³
+x = torch.tensor([1.0, 2.0, 3.0], requires_grad=True)
+
+y = (x ** 2).sum()  # y = x₁² + x₂² + x₃²
+y.backward()
+
+print(f"x: {x.tolist()}")
+print(f"y = sum(x²) = {y.item()}")
+print(f"∂y/∂x = 2x = {x.grad.tolist()}")  # [2, 4, 6]
+</CodeCell>
+
+## Regra da Cadeia em Ação
+
+O autograd aplica a regra da cadeia automaticamente:
+
+<CodeCell id="chain-rule">
+import torch
+
+x = torch.tensor([2.0], requires_grad=True)
+
+# Função composta: h(x) = (sin(x²))²
+# h'(x) = 2*sin(x²)*cos(x²)*2x = 4x*sin(x²)*cos(x²)
+
+y = x ** 2           # u = x²
+z = torch.sin(y)     # v = sin(u)
+w = z ** 2           # w = v²
+
+w.backward()
+
+# Verificação manual
+import math
+x_val = 2.0
+manual = 4 * x_val * math.sin(x_val**2) * math.cos(x_val**2)
+
+print(f"PyTorch: {x.grad.item():.6f}")
+print(f"Manual:  {manual:.6f}")
+</CodeCell>
+
+## Gradientes para Redução
+
+Quando temos operações de redução (sum, mean), os gradientes fluem para trás:
+
+<CodeCell id="reduction-grads">
+import torch
+
+# MSE Loss manual
+predictions = torch.tensor([1.0, 2.0, 3.0], requires_grad=True)
+targets = torch.tensor([1.5, 2.5, 3.5])
+
+# loss = mean((pred - target)²)
+diff = predictions - targets
+squared = diff ** 2
+loss = squared.mean()
+
+loss.backward()
+
+print(f"Predições: {predictions.tolist()}")
+print(f"Targets:   {targets.tolist()}")
+print(f"Diferença: {diff.tolist()}")
+print(f"Loss:      {loss.item()}")
+print(f"Gradientes: {predictions.grad.tolist()}")
+
+# Verificação: d(loss)/d(pred) = 2*(pred-target)/n
+manual_grad = 2 * (predictions.detach() - targets) / len(predictions)
+print(f"Manual:     {manual_grad.tolist()}")
+</CodeCell>
+
+## Gradiente de Produto Escalar
+
+<CodeCell id="dot-product-grad">
+import torch
+
+# z = x · y (produto escalar)
+x = torch.tensor([1.0, 2.0, 3.0], requires_grad=True)
+y = torch.tensor([4.0, 5.0, 6.0], requires_grad=True)
+
+z = torch.dot(x, y)  # z = x₁y₁ + x₂y₂ + x₃y₃
+z.backward()
+
+print(f"x: {x.tolist()}")
+print(f"y: {y.tolist()}")
+print(f"z = x·y = {z.item()}")
+print(f"∂z/∂x = y = {x.grad.tolist()}")
+print(f"∂z/∂y = x = {y.grad.tolist()}")
+</CodeCell>
+
+## Gradiente de Multiplicação de Matrizes
+
+<CodeCell id="matmul-grad">
+import torch
+
+# Z = X @ W (multiplicação de matrizes)
+X = torch.tensor([[1.0, 2.0], [3.0, 4.0]], requires_grad=True)
+W = torch.tensor([[5.0, 6.0], [7.0, 8.0]], requires_grad=True)
+
+Z = X @ W
+loss = Z.sum()  # Precisamos de um escalar para backward
+
+loss.backward()
+
+print("X:\n", X)
+print("\nW:\n", W)
+print("\nZ = X @ W:\n", Z)
+print("\n∂loss/∂X:\n", X.grad)
+print("\n∂loss/∂W:\n", W.grad)
+</CodeCell>
+
+## Gradient Descent Manual
+
+<CodeCell id="manual-gd">
+import torch
+
+# Dados sintéticos
+torch.manual_seed(0)
+X = torch.randn(100, 3)
+true_w = torch.tensor([2.0, -1.0, 0.5])
+y = X @ true_w + torch.randn(100) * 0.1
+
+# Parâmetros iniciais
+w = torch.randn(3, requires_grad=True)
+
+lr = 0.1
+n_epochs = 50
+
+print("Epoch | Loss    | w")
+print("-" * 40)
+
+for epoch in range(n_epochs):
+    # Forward
+    pred = X @ w
+    loss = ((pred - y) ** 2).mean()
+
+    # Backward
+    loss.backward()
+
+    # Update
+    with torch.no_grad():
+        w -= lr * w.grad
+
+    # Zero gradients
+    w.grad.zero_()
+
+    if epoch % 10 == 0:
+        print(f"{epoch:5d} | {loss.item():.5f} | {w.detach().tolist()}")
+
+print(f"\nw aprendido: {w.detach().tolist()}")
+print(f"w verdadeiro: {true_w.tolist()}")
+</CodeCell>
+
+## Exercícios
+
+<Exercise id="ex-manual-verify" difficulty="medium">
+Calcule manualmente e verifique com PyTorch o gradiente de f(x) = e^(x²) em x = 1. A derivada é 2x·e^(x²). Armazene o gradiente em `gradient`.
+</Exercise>
+
+<Exercise id="ex-multi-var" difficulty="hard">
+Para a função f(x, y) = x²y + xy² em (x=2, y=3), calcule ∂f/∂x e ∂f/∂y. Armazene em `grad_x` e `grad_y`.
+Dicas: ∂f/∂x = 2xy + y², ∂f/∂y = x² + 2xy
+</Exercise>
+
+## Resumo
+
+Neste módulo você aprendeu:
+- Como verificar gradientes manualmente
+- Gradientes de funções vetoriais
+- Regra da cadeia aplicada automaticamente
+- Gradientes através de operações de redução
+- Gradientes de produto escalar e multiplicação de matrizes
+- Gradient descent implementado do zero
+
+Você completou a Seção 2: Autograd! No próximo módulo, vamos começar a construir redes neurais com nn.Module.

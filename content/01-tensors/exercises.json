@@ -1,0 +1,65 @@
+{
+  "ex-2d-tensor": {
+    "starterCode": "import torch\n\n# Crie um tensor 2D com shape (3, 4) preenchido com zeros\nx = ",
+    "hints": [
+      "Use torch.zeros() para criar tensores preenchidos com zeros",
+      "O argumento de torch.zeros() pode ser os tamanhos das dimensões: torch.zeros(linhas, colunas)"
+    ],
+    "validation": {
+      "type": "assert",
+      "tests": [
+        "assert x.shape == torch.Size([3, 4]), f'Shape incorreto: esperado (3, 4), obtido {tuple(x.shape)}'",
+        "assert x.sum() == 0, 'O tensor deveria conter apenas zeros'",
+        "assert x.dtype == torch.float32, 'O dtype padrão de zeros é float32'"
+      ]
+    },
+    "solution": "x = torch.zeros(3, 4)"
+  },
+  "ex-random-tensor": {
+    "starterCode": "import torch\n\n# Crie um tensor aleatório (distribuição normal) com shape (5, 5)\nrandom_tensor = ",
+    "hints": [
+      "Use torch.randn() para valores de uma distribuição normal (média 0, desvio padrão 1)",
+      "Não confunda torch.rand() (uniforme 0-1) com torch.randn() (normal)"
+    ],
+    "validation": {
+      "type": "assert",
+      "tests": [
+        "assert random_tensor.shape == torch.Size([5, 5]), f'Shape incorreto: esperado (5, 5), obtido {tuple(random_tensor.shape)}'",
+        "assert random_tensor.dtype == torch.float32, 'O dtype deveria ser float32'"
+      ]
+    },
+    "solution": "random_tensor = torch.randn(5, 5)"
+  },
+  "ex-dtype-conversion": {
+    "starterCode": "import torch\n\n# Crie um tensor de inteiros e converta para float32\nint_tensor = torch.tensor([1, 2, 3, 4, 5])\nfloat_tensor = ",
+    "hints": [
+      "Você pode usar o método .float() para converter para float32",
+      "Alternativamente, use .to(torch.float32) ou int_tensor.type(torch.float32)"
+    ],
+    "validation": {
+      "type": "assert",
+      "tests": [
+        "assert float_tensor.dtype == torch.float32, f'Dtype incorreto: esperado float32, obtido {float_tensor.dtype}'",
+        "assert list(float_tensor) == [1.0, 2.0, 3.0, 4.0, 5.0], 'Os valores deveriam ser [1.0, 2.0, 3.0, 4.0, 5.0]'"
+      ]
+    },
+    "solution": "float_tensor = int_tensor.float()"
+  },
+  "ex-tensor-info": {
+    "starterCode": "import torch\n\nt = torch.rand(2, 3, 4)\n\n# Extraia as informações do tensor\nnum_dims = \nnum_elements = \ntensor_dtype = ",
+    "hints": [
+      "Use .ndim ou len(t.shape) para obter o número de dimensões",
+      "Use .numel() para obter o número total de elementos",
+      "Use .dtype para obter o tipo de dados"
+    ],
+    "validation": {
+      "type": "assert",
+      "tests": [
+        "assert num_dims == 3, f'Número de dimensões incorreto: esperado 3, obtido {num_dims}'",
+        "assert num_elements == 24, f'Número de elementos incorreto: esperado 24, obtido {num_elements}'",
+        "assert tensor_dtype == torch.float32, f'Dtype incorreto: esperado float32, obtido {tensor_dtype}'"
+      ]
+    },
+    "solution": "num_dims = t.ndim\nnum_elements = t.numel()\ntensor_dtype = t.dtype"
+  }
+}

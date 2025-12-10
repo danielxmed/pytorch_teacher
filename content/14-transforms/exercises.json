@@ -1,0 +1,18 @@
+{
+  "ex-normalize": {
+    "starterCode": "import torch\n\ndef standardize(x):\n    \"\"\"Normaliza tensor para média 0 e std 1.\"\"\"\n    pass\n\n# Teste\nx = torch.tensor([10., 20., 30., 40., 50.])\nnormalized = standardize(x)\nprint(f'Média: {normalized.mean():.4f}')\nprint(f'Std: {normalized.std():.4f}')",
+    "hints": [
+      "Calcule média com x.mean() e std com x.std()",
+      "Retorne (x - mean) / std"
+    ],
+    "validation": {
+      "type": "assert",
+      "tests": [
+        "result = standardize(torch.tensor([10., 20., 30., 40., 50.]))",
+        "assert abs(result.mean().item()) < 1e-5, 'Média deveria ser ~0'",
+        "assert abs(result.std().item() - 1.0) < 0.1, 'Std deveria ser ~1'"
+      ]
+    },
+    "solution": "def standardize(x):\n    mean = x.mean()\n    std = x.std()\n    return (x - mean) / std"
+  }
+}

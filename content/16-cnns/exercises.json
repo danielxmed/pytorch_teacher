@@ -1,0 +1,35 @@
+{
+  "ex-conv-output-size": {
+    "starterCode": "import torch\nimport torch.nn as nn\n\n# Conv2d: kernel=5, stride=2, padding=0\n# Input: 64x64\n# Formula: (W - K + 2P) / S + 1\n\n# Calcule o output size\noutput_size = \n\n# Verifique\nconv = nn.Conv2d(3, 32, kernel_size=5, stride=2, padding=0)\nx = torch.randn(1, 3, 64, 64)\nout = conv(x)\nprint(f'Calculado: {output_size}')\nprint(f'Real: {out.shape[2]}')",
+    "hints": [
+      "Formula: (W - K + 2P) / S + 1",
+      "(64 - 5 + 0) / 2 + 1 = 59/2 + 1 = 29.5 + 1 = 30"
+    ],
+    "validation": {
+      "type": "assert",
+      "tests": [
+        "assert output_size == 30, f'Output size incorreto: esperado 30, obtido {output_size}'"
+      ]
+    },
+    "solution": "output_size = 30  # (64 - 5 + 0) // 2 + 1 = 30"
+  },
+  "ex-simple-conv": {
+    "starterCode": "import torch\nimport torch.nn as nn\n\n# Input: 1x28x28 -> Output: 10 classes\n# Após Conv2d(1, 16, 3): 16x26x26\n# Após MaxPool2d(2): 16x13x13\n# Flatten: 16*13*13 = 2704\n\nmodel = nn.Sequential(\n    # Sua arquitetura aqui\n)\n\n# Teste\nx = torch.randn(4, 1, 28, 28)\nout = model(x)\nprint(f'Output: {out.shape}')",
+    "hints": [
+      "nn.Conv2d(1, 16, 3) -> 28-3+1 = 26",
+      "nn.ReLU()",
+      "nn.MaxPool2d(2) -> 26/2 = 13",
+      "nn.Flatten() -> 16*13*13 = 2704",
+      "nn.Linear(2704, 10)"
+    ],
+    "validation": {
+      "type": "assert",
+      "tests": [
+        "x_test = torch.randn(8, 1, 28, 28)",
+        "out_test = model(x_test)",
+        "assert out_test.shape == torch.Size([8, 10]), f'Shape incorreto: {out_test.shape}'"
+      ]
+    },
+    "solution": "model = nn.Sequential(\n    nn.Conv2d(1, 16, 3),\n    nn.ReLU(),\n    nn.MaxPool2d(2),\n    nn.Flatten(),\n    nn.Linear(16 * 13 * 13, 10)\n)"
+  }
+}

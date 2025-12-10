@@ -1,0 +1,144 @@
+---
+title: "Transfer Learning e Fine-tuning"
+order: 19
+prerequisites: ["16-cnns", "12-training-loop"]
+estimatedMinutes: 45
+pytorchVersion: "2.2"
+---
+
+# Transfer Learning e Fine-tuning
+
+Aproveite modelos pré-treinados para resolver novos problemas com menos dados.
+
+## Conceito
+
+<CodeCell id="concept">
+import torch
+import torch.nn as nn
+
+# Simular um modelo pré-treinado (ex: ResNet treinado no ImageNet)
+class PretrainedModel(nn.Module):
+    def __init__(self):
+        super().__init__()
+        # Feature extractor (camadas convolucionais)
+        self.features = nn.Sequential(
+            nn.Conv2d(3, 64, 3, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(2),
+            nn.Conv2d(64, 128, 3, padding=1),
+            nn.ReLU(),
+            nn.AdaptiveAvgPool2d((1, 1))
+        )
+        # Classificador original (1000 classes ImageNet)
+        self.classifier = nn.Linear(128, 1000)
+
+    def forward(self, x):
+        x = self.features(x)
+        x = x.view(x.size(0), -1)
+        return self.classifier(x)
+
+pretrained = PretrainedModel()
+print("Modelo pré-treinado:")
+print(f"  Features: {sum(p.numel() for p in pretrained.features.parameters()):,} params")
+print(f"  Classifier: {sum(p.numel() for p in pretrained.classifier.parameters()):,} params")
+</CodeCell>
+
+## Feature Extraction
+
+<CodeCell id="feature-extraction">
+import torch.nn as nn
+
+# 1. Carregar modelo pré-treinado
+pretrained = PretrainedModel()
+
+# 2. Congelar feature extractor
+for param in pretrained.features.parameters():
+    param.requires_grad = False
+
+# 3. Substituir classificador para novo problema
+pretrained.classifier = nn.Linear(128, 10)  # 10 classes
+
+# Verificar params treináveis
+trainable = sum(p.numel() for p in pretrained.parameters() if p.requires_grad)
+frozen = sum(p.numel() for p in pretrained.parameters() if not p.requires_grad)
+print(f"Treináveis: {trainable:,}")
+print(f"Congelados: {frozen:,}")
+</CodeCell>
+
+<Callout type="tip">
+Feature extraction é mais rápido e funciona bem quando seus dados são similares aos dados de pré-treino.
+</Callout>
+
+## Fine-tuning
+
+<CodeCell id="fine-tuning">
+import torch.nn as nn
+import torch.optim as optim
+
+# 1. Carregar modelo pré-treinado
+model = PretrainedModel()
+
+# 2. Substituir classificador
+model.classifier = nn.Linear(128, 10)
+
+# 3. Learning rates diferentes!
+optimizer = optim.Adam([
+    {'params': model.features.parameters(), 'lr': 1e-5},  # LR baixo para features
+    {'params': model.classifier.parameters(), 'lr': 1e-3}  # LR alto para classificador
+])
+
+print("Fine-tuning com learning rates diferentes:")
+for i, group in enumerate(optimizer.param_groups):
+    print(f"  Grupo {i}: lr={group['lr']}")
+</CodeCell>
+
+## Estratégias de Fine-tuning
+
+<CodeCell id="strategies">
+import torch.nn as nn
+
+class GradualUnfreezing:
+    """Descongela camadas gradualmente durante treino."""
+
+    def __init__(self, model, layers_per_epoch=1):
+        self.model = model
+        self.layers_per_epoch = layers_per_epoch
+        self.frozen_layers = list(model.features.children())
+        self._freeze_all()
+
+    def _freeze_all(self):
+        for layer in self.frozen_layers:
+            for param in layer.parameters():
+                param.requires_grad = False
+
+    def unfreeze_next(self):
+        """Descongela as próximas N camadas."""
+        for _ in range(min(self.layers_per_epoch, len(self.frozen_layers))):
+            if self.frozen_layers:
+                layer = self.frozen_layers.pop()
+                for param in layer.parameters():
+                    param.requires_grad = True
+                print(f"Descongelou: {layer}")
+
+model = PretrainedModel()
+unfreezer = GradualUnfreezing(model)
+
+print("Epoch 1:")
+unfreezer.unfreeze_next()
+print("\nEpoch 2:")
+unfreezer.unfreeze_next()
+</CodeCell>
+
+## Exercícios
+
+<Exercise id="ex-freeze-layers" difficulty="medium">
+Dado um modelo Sequential, congele todas as camadas exceto a última. Conte params treináveis vs congelados.
+</Exercise>
+
+## Resumo
+
+- Transfer learning: Usar conhecimento de um problema em outro
+- Feature extraction: Congelar features, treinar só classificador
+- Fine-tuning: Treinar tudo com LRs diferentes
+- Gradual unfreezing: Descongelar progressivamente
+- Funciona melhor quando domínios são similares

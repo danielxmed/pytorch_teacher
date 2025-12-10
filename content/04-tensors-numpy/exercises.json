@@ -1,0 +1,55 @@
+{
+  "ex-convert": {
+    "starterCode": "import torch\nimport numpy as np\n\nnp_arr = np.array([[1, 2, 3], [4, 5, 6]])\n\n# Converta para tensor SEM compartilhar memória\ntensor = ",
+    "hints": [
+      "Use torch.tensor() em vez de torch.from_numpy()",
+      "torch.tensor() sempre faz uma cópia dos dados"
+    ],
+    "validation": {
+      "type": "assert",
+      "tests": [
+        "assert isinstance(tensor, torch.Tensor), 'Deve ser um tensor PyTorch'",
+        "assert tensor.shape == torch.Size([2, 3]), f'Shape incorreto: esperado (2, 3), obtido {tuple(tensor.shape)}'",
+        "original_val = np_arr[0, 0]",
+        "tensor[0, 0] = 999",
+        "assert np_arr[0, 0] == original_val, 'Array original foi modificado! Use torch.tensor() para não compartilhar memória'"
+      ]
+    },
+    "solution": "tensor = torch.tensor(np_arr)"
+  },
+  "ex-roundtrip": {
+    "starterCode": "import torch\nimport numpy as np\n\nt = torch.arange(10, dtype=torch.float32)\n\n# 1. Calcule a média com PyTorch\nmean_pt = t.mean()\nprint('Média (PyTorch):', mean_pt)\n\n# 2. Converta para NumPy\n# 3. Calcule desvio padrão com NumPy\n# 4. Converta de volta para tensor\nstd_tensor = ",
+    "hints": [
+      "Use .numpy() para converter para NumPy",
+      "Use np.std() para calcular o desvio padrão",
+      "Use torch.tensor() para converter o resultado de volta",
+      "Lembre-se que np.std() retorna um escalar numpy, não um array"
+    ],
+    "validation": {
+      "type": "assert",
+      "tests": [
+        "assert isinstance(std_tensor, torch.Tensor), 'Resultado deve ser um tensor PyTorch'",
+        "expected_std = torch.tensor(t.numpy().std())",
+        "assert torch.isclose(std_tensor, expected_std, atol=1e-5), f'Valor incorreto: esperado {expected_std.item():.4f}, obtido {std_tensor.item():.4f}'"
+      ]
+    },
+    "solution": "std_tensor = torch.tensor(t.numpy().std())"
+  },
+  "ex-safe-modify": {
+    "starterCode": "import torch\nimport numpy as np\n\nsource = np.array([1.0, 2.0, 3.0, 4.0, 5.0])\nprint('Source original:', source)\n\n# Crie um tensor e multiplique por 2 SEM modificar source\ndoubled = ",
+    "hints": [
+      "Primeiro crie uma cópia independente com torch.tensor(source)",
+      "Depois multiplique por 2",
+      "Não use torch.from_numpy() pois isso compartilha memória"
+    ],
+    "validation": {
+      "type": "assert",
+      "tests": [
+        "assert isinstance(doubled, torch.Tensor), 'Resultado deve ser um tensor'",
+        "assert list(doubled.numpy()) == [2.0, 4.0, 6.0, 8.0, 10.0], f'Valores incorretos: esperado [2,4,6,8,10], obtido {list(doubled.numpy())}'",
+        "assert list(source) == [1.0, 2.0, 3.0, 4.0, 5.0], 'Array source foi modificado! Crie uma cópia independente'"
+      ]
+    },
+    "solution": "doubled = torch.tensor(source) * 2"
+  }
+}

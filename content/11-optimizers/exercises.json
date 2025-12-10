@@ -1,0 +1,34 @@
+{
+  "ex-optimizer-setup": {
+    "starterCode": "import torch\nimport torch.nn as nn\nimport torch.optim as optim\n\nmodel = nn.Sequential(\n    nn.Linear(784, 128),\n    nn.ReLU(),\n    nn.Linear(128, 10)\n)\n\n# Crie otimizador Adam com lr=0.001 e weight_decay=0.01\noptimizer = \n\nprint(f'LR: {optimizer.defaults[\"lr\"]}')\nprint(f'Weight decay: {optimizer.defaults[\"weight_decay\"]}')",
+    "hints": [
+      "optim.Adam(model.parameters(), lr=..., weight_decay=...)"
+    ],
+    "validation": {
+      "type": "assert",
+      "tests": [
+        "assert optimizer.defaults['lr'] == 0.001, f'LR incorreto: {optimizer.defaults[\"lr\"]}'",
+        "assert optimizer.defaults['weight_decay'] == 0.01, f'Weight decay incorreto: {optimizer.defaults[\"weight_decay\"]}'"
+      ]
+    },
+    "solution": "optimizer = optim.Adam(model.parameters(), lr=0.001, weight_decay=0.01)"
+  },
+  "ex-train-step": {
+    "starterCode": "import torch\nimport torch.nn as nn\nimport torch.optim as optim\n\n# Setup\nmodel = nn.Linear(10, 2)\noptimizer = optim.SGD(model.parameters(), lr=0.01)\ncriterion = nn.MSELoss()\n\nX = torch.randn(32, 10)\ny = torch.randn(32, 2)\n\n# Complete o passo de treino na ordem correta:\n# 1. Zero gradients\n\n# 2. Forward pass\noutput = \n\n# 3. Calcular loss\nloss = \n\n# 4. Backward pass\n\n# 5. Update parameters\n\n\nprint(f'Loss: {loss.item():.4f}')\nprint(f'Gradiente do peso: {model.weight.grad is not None}')",
+    "hints": [
+      "1. optimizer.zero_grad()",
+      "2. output = model(X)",
+      "3. loss = criterion(output, y)",
+      "4. loss.backward()",
+      "5. optimizer.step()"
+    ],
+    "validation": {
+      "type": "assert",
+      "tests": [
+        "assert loss is not None, 'Loss não foi calculado'",
+        "assert model.weight.grad is not None, 'Backward não foi chamado'"
+      ]
+    },
+    "solution": "optimizer.zero_grad()\noutput = model(X)\nloss = criterion(output, y)\nloss.backward()\noptimizer.step()"
+  }
+}

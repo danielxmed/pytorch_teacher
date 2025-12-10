@@ -1,0 +1,65 @@
+name: Weekly Documentation Check
+
+on:
+  schedule:
+    - cron: '0 0 * * 0'  # Todo domingo à meia-noite UTC
+  workflow_dispatch:  # Permite execução manual
+
+jobs:
+  check-snippets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install latest PyTorch
+        run: |
+          pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+          pip install numpy
+
+      - name: Run all code snippets
+        id: snippets
+        continue-on-error: true
+        run: python scripts/run-snippets.py
+
+      - name: Create issue if failed
+        if: steps.snippets.outcome == 'failure'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = `[Auto] Code snippets failing with latest PyTorch`;
+            const body = `
+            ## Weekly Documentation Check Failed
+
+            Some code snippets in the course content are failing with the latest version of PyTorch.
+
+            **Action needed:** Review and update affected modules.
+
+            **Run details:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+            This issue was automatically created by the weekly documentation check workflow.
+            `;
+
+            // Check if similar issue exists
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'docs-outdated'
+            });
+
+            const existingIssue = issues.data.find(i => i.title.includes('[Auto] Code snippets failing'));
+
+            if (!existingIssue) {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: title,
+                body: body,
+                labels: ['docs-outdated', 'automated']
+              });
+            }
