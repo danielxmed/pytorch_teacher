@@ -1,0 +1,109 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom scrollbar for dark theme */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1a1a2e;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #0f3460;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #ee4c2c;
+}
+
+/* Code highlighting overrides for dark theme */
+.hljs {
+  background: #16213e !important;
+}
+
+/* Smooth transitions */
+* {
+  transition-property: background-color, border-color, color, fill, stroke;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+/* Monaco editor customizations */
+.monaco-editor {
+  border-radius: 0.5rem;
+}
+
+/* MDX content styling */
+.mdx-content {
+  @apply text-dark-text leading-relaxed;
+}
+
+.mdx-content h1 {
+  @apply text-3xl font-bold text-pytorch-500 mb-6 mt-8;
+}
+
+.mdx-content h2 {
+  @apply text-2xl font-semibold text-dark-text mb-4 mt-6;
+}
+
+.mdx-content h3 {
+  @apply text-xl font-medium text-dark-text mb-3 mt-4;
+}
+
+.mdx-content p {
+  @apply mb-4 text-dark-muted;
+}
+
+.mdx-content ul, .mdx-content ol {
+  @apply mb-4 ml-6 text-dark-muted;
+}
+
+.mdx-content li {
+  @apply mb-2;
+}
+
+.mdx-content ul li {
+  @apply list-disc;
+}
+
+.mdx-content ol li {
+  @apply list-decimal;
+}
+
+.mdx-content code:not(pre code) {
+  @apply bg-dark-surface px-1.5 py-0.5 rounded text-pytorch-400 font-mono text-sm;
+}
+
+.mdx-content pre {
+  @apply bg-dark-surface p-4 rounded-lg mb-4 overflow-x-auto;
+}
+
+.mdx-content pre code {
+  @apply bg-transparent p-0 text-sm;
+}
+
+.mdx-content blockquote {
+  @apply border-l-4 border-pytorch-500 pl-4 italic text-dark-muted my-4;
+}
+
+.mdx-content a {
+  @apply text-pytorch-500 hover:text-pytorch-400 underline;
+}
+
+.mdx-content strong {
+  @apply font-semibold text-dark-text;
+}
+
+/* Tensor visualization */
+.tensor-viz {
+  @apply font-mono text-sm;
+}
+
+.tensor-cell {
+  @apply px-2 py-1 text-center border border-dark-border;
+}

@@ -1,0 +1,254 @@
+---
+title: "nn.Module: Anatomia de uma Rede Neural"
+order: 8
+prerequisites: ["05-autograd-intro", "07-gradients-practice"]
+estimatedMinutes: 55
+pytorchVersion: "2.2"
+---
+
+# nn.Module: Anatomia de uma Rede Neural
+
+O `torch.nn.Module` é a classe base para todos os modelos de redes neurais em PyTorch. Dominar esta classe é essencial para construir arquiteturas customizadas.
+
+## Sua Primeira Rede Neural
+
+<CodeCell id="first-network">
+import torch
+import torch.nn as nn
+
+class SimpleNet(nn.Module):
+    def __init__(self):
+        super().__init__()
+        # Definir camadas
+        self.fc1 = nn.Linear(10, 5)
+        self.fc2 = nn.Linear(5, 2)
+
+    def forward(self, x):
+        # Definir como os dados fluem
+        x = self.fc1(x)
+        x = torch.relu(x)
+        x = self.fc2(x)
+        return x
+
+# Criar instância
+model = SimpleNet()
+print(model)
+
+# Fazer uma predição
+x = torch.randn(3, 10)  # Batch de 3 exemplos, 10 features
+output = model(x)
+print(f"\nInput shape: {x.shape}")
+print(f"Output shape: {output.shape}")
+</CodeCell>
+
+<DocRef symbol="torch.nn.Module" />
+
+## Parâmetros do Modelo
+
+`nn.Module` rastreia automaticamente os parâmetros:
+
+<CodeCell id="parameters">
+import torch.nn as nn
+import torch
+
+class TinyNet(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.linear = nn.Linear(4, 2)
+
+    def forward(self, x):
+        return self.linear(x)
+
+model = TinyNet()
+
+# Listar parâmetros
+print("Parâmetros nomeados:")
+for name, param in model.named_parameters():
+    print(f"  {name}: {param.shape}")
+
+# Total de parâmetros
+total = sum(p.numel() for p in model.parameters())
+print(f"\nTotal de parâmetros: {total}")
+
+# Parâmetros treináveis
+trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
+print(f"Parâmetros treináveis: {trainable}")
+</CodeCell>
+
+## Módulos Aninhados
+
+<CodeCell id="nested-modules">
+import torch.nn as nn
+
+class Block(nn.Module):
+    def __init__(self, in_features, out_features):
+        super().__init__()
+        self.linear = nn.Linear(in_features, out_features)
+        self.bn = nn.BatchNorm1d(out_features)
+
+    def forward(self, x):
+        return torch.relu(self.bn(self.linear(x)))
+
+class DeepNet(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.block1 = Block(10, 20)
+        self.block2 = Block(20, 10)
+        self.output = nn.Linear(10, 2)
+
+    def forward(self, x):
+        x = self.block1(x)
+        x = self.block2(x)
+        return self.output(x)
+
+model = DeepNet()
+print(model)
+
+# Acessar submódulos
+print("\nSubmódulos:")
+for name, module in model.named_modules():
+    if name:
+        print(f"  {name}: {type(module).__name__}")
+</CodeCell>
+
+## nn.Sequential
+
+Para redes simples em sequência:
+
+<CodeCell id="sequential">
+import torch.nn as nn
+
+# Forma explícita
+model = nn.Sequential(
+    nn.Linear(10, 64),
+    nn.ReLU(),
+    nn.Linear(64, 32),
+    nn.ReLU(),
+    nn.Linear(32, 2)
+)
+
+print(model)
+
+# Com nomes
+model_named = nn.Sequential()
+model_named.add_module('fc1', nn.Linear(10, 64))
+model_named.add_module('relu1', nn.ReLU())
+model_named.add_module('fc2', nn.Linear(64, 2))
+
+print("\nCom nomes:")
+print(model_named)
+
+# Teste
+x = torch.randn(5, 10)
+print(f"\nOutput shape: {model(x).shape}")
+</CodeCell>
+
+## ModuleList e ModuleDict
+
+<CodeCell id="modulelist-dict">
+import torch.nn as nn
+
+class FlexibleNet(nn.Module):
+    def __init__(self, layer_sizes):
+        super().__init__()
+        # ModuleList para lista de módulos
+        self.layers = nn.ModuleList([
+            nn.Linear(layer_sizes[i], layer_sizes[i+1])
+            for i in range(len(layer_sizes)-1)
+        ])
+
+    def forward(self, x):
+        for layer in self.layers[:-1]:
+            x = torch.relu(layer(x))
+        return self.layers[-1](x)
+
+model = FlexibleNet([10, 64, 32, 2])
+print(model)
+
+# ModuleDict para acesso por nome
+heads = nn.ModuleDict({
+    'classification': nn.Linear(32, 10),
+    'regression': nn.Linear(32, 1)
+})
+print("\nModuleDict:")
+print(heads)
+</CodeCell>
+
+<Callout type="warning">
+Sempre use `nn.ModuleList` ou `nn.ModuleDict` em vez de listas ou dicts Python normais. Caso contrário, os parâmetros não serão registrados!
+</Callout>
+
+## train() e eval()
+
+<CodeCell id="train-eval">
+import torch.nn as nn
+
+model = nn.Sequential(
+    nn.Linear(10, 20),
+    nn.Dropout(0.5),  # Só ativo em modo treino
+    nn.BatchNorm1d(20),  # Comportamento diferente em treino/eval
+    nn.Linear(20, 2)
+)
+
+print(f"Modo inicial: training={model.training}")
+
+# Modo treino
+model.train()
+print(f"Após train(): training={model.training}")
+
+# Modo avaliação
+model.eval()
+print(f"Após eval(): training={model.training}")
+</CodeCell>
+
+## Salvando e Carregando Modelos
+
+<CodeCell id="save-load">
+import torch
+import torch.nn as nn
+
+model = nn.Sequential(
+    nn.Linear(10, 5),
+    nn.ReLU(),
+    nn.Linear(5, 2)
+)
+
+# Método 1: Salvar state_dict (recomendado)
+# torch.save(model.state_dict(), 'model_weights.pth')
+
+# Para carregar:
+# model.load_state_dict(torch.load('model_weights.pth'))
+
+# Método 2: Salvar modelo inteiro
+# torch.save(model, 'model_full.pth')
+# model = torch.load('model_full.pth')
+
+# Ver o state_dict
+print("State dict keys:")
+for key in model.state_dict().keys():
+    print(f"  {key}")
+
+print("\nExemplo de pesos:")
+print(model.state_dict()['0.weight'][:2])
+</CodeCell>
+
+## Exercícios
+
+<Exercise id="ex-custom-module" difficulty="medium">
+Crie uma rede neural com duas camadas lineares (10 -> 20 -> 5) com ReLU entre elas. Armazene em `model` e verifique que funciona com input shape (batch, 10).
+</Exercise>
+
+<Exercise id="ex-count-params" difficulty="medium">
+Conte o número total de parâmetros do modelo `model = nn.Linear(100, 50)`. Armazene em `total_params`. Lembre-se que Linear tem weight e bias!
+</Exercise>
+
+## Resumo
+
+Neste módulo você aprendeu:
+- `nn.Module` é a base para redes neurais
+- `__init__` define camadas, `forward` define fluxo de dados
+- Parâmetros são rastreados automaticamente
+- `nn.Sequential` para redes simples
+- `ModuleList` e `ModuleDict` para flexibilidade
+- `train()` e `eval()` para mudar comportamento
+- Como salvar e carregar modelos

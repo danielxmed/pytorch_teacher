@@ -1,0 +1,150 @@
+---
+title: "Transforms e Augmentation"
+order: 14
+prerequisites: ["13-dataset-dataloader"]
+estimatedMinutes: 40
+pytorchVersion: "2.2"
+---
+
+# Transforms e Augmentation
+
+Transforms preprocessam dados e aplicam data augmentation para melhorar generalização.
+
+## Transforms Básicos
+
+<CodeCell id="basic-transforms">
+import torch
+
+# Normalização manual
+def normalize(x, mean, std):
+    return (x - mean) / std
+
+# Exemplo
+x = torch.tensor([100., 200., 150.])
+mean, std = x.mean(), x.std()
+normalized = normalize(x, mean, std)
+print(f"Original: {x}")
+print(f"Normalizado: {normalized}")
+print(f"Média após normalização: {normalized.mean():.4f}")
+</CodeCell>
+
+## Compose de Transforms
+
+<CodeCell id="compose">
+import torch
+
+class Compose:
+    def __init__(self, transforms):
+        self.transforms = transforms
+
+    def __call__(self, x):
+        for t in self.transforms:
+            x = t(x)
+        return x
+
+class ToFloat:
+    def __call__(self, x):
+        return x.float()
+
+class Normalize:
+    def __init__(self, mean, std):
+        self.mean = mean
+        self.std = std
+
+    def __call__(self, x):
+        return (x - self.mean) / self.std
+
+# Usar
+transform = Compose([
+    ToFloat(),
+    Normalize(mean=0.5, std=0.5)
+])
+
+x = torch.tensor([0, 128, 255])
+print(f"Original: {x}")
+print(f"Transformado: {transform(x)}")
+</CodeCell>
+
+## Augmentation para Imagens
+
+<CodeCell id="augmentation">
+import torch
+
+class RandomHorizontalFlip:
+    def __init__(self, p=0.5):
+        self.p = p
+
+    def __call__(self, x):
+        if torch.rand(1) < self.p:
+            return x.flip(-1)  # Flip horizontal
+        return x
+
+class RandomNoise:
+    def __init__(self, std=0.1):
+        self.std = std
+
+    def __call__(self, x):
+        return x + torch.randn_like(x) * self.std
+
+# Testar
+torch.manual_seed(42)
+img = torch.arange(12).reshape(3, 2, 2).float()
+print("Original:\n", img[0])
+
+flip = RandomHorizontalFlip(p=1.0)
+print("\nFlipped:\n", flip(img)[0])
+</CodeCell>
+
+## Dataset com Transform
+
+<CodeCell id="dataset-transform">
+import torch
+from torch.utils.data import Dataset
+
+class TransformDataset(Dataset):
+    def __init__(self, data, labels, transform=None):
+        self.data = data
+        self.labels = labels
+        self.transform = transform
+
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, idx):
+        x = self.data[idx]
+        y = self.labels[idx]
+
+        if self.transform:
+            x = self.transform(x)
+
+        return x, y
+
+# Diferentes transforms para treino e validação
+train_transform = Compose([ToFloat(), RandomNoise(0.1), Normalize(0, 1)])
+val_transform = Compose([ToFloat(), Normalize(0, 1)])
+
+data = torch.randint(0, 256, (100, 3, 8, 8))
+labels = torch.randint(0, 10, (100,))
+
+train_dataset = TransformDataset(data[:80], labels[:80], train_transform)
+val_dataset = TransformDataset(data[80:], labels[80:], val_transform)
+
+print(f"Train sample shape: {train_dataset[0][0].shape}")
+</CodeCell>
+
+<Callout type="tip">
+Use augmentation apenas no treino! Validação e teste devem usar apenas normalização.
+</Callout>
+
+## Exercícios
+
+<Exercise id="ex-normalize" difficulty="easy">
+Crie uma função que normaliza um tensor para ter média 0 e std 1.
+</Exercise>
+
+## Resumo
+
+- Transforms preprocessam e aumentam dados
+- Compose encadeia múltiplos transforms
+- Augmentation só no treino
+- Normalização em treino e validação

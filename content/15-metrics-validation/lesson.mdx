@@ -1,0 +1,175 @@
+---
+title: "Métricas, Validação e Early Stopping"
+order: 15
+prerequisites: ["12-training-loop", "13-dataset-dataloader"]
+estimatedMinutes: 45
+pytorchVersion: "2.2"
+---
+
+# Métricas, Validação e Early Stopping
+
+Além da loss, precisamos de métricas para avaliar modelos e técnicas para evitar overfitting.
+
+## Métricas de Classificação
+
+<CodeCell id="classification-metrics">
+import torch
+
+def accuracy(predictions, targets):
+    return (predictions == targets).float().mean()
+
+def precision_recall_f1(predictions, targets, num_classes):
+    metrics = {}
+    for c in range(num_classes):
+        tp = ((predictions == c) & (targets == c)).sum().float()
+        fp = ((predictions == c) & (targets != c)).sum().float()
+        fn = ((predictions != c) & (targets == c)).sum().float()
+
+        precision = tp / (tp + fp + 1e-8)
+        recall = tp / (tp + fn + 1e-8)
+        f1 = 2 * precision * recall / (precision + recall + 1e-8)
+
+        metrics[c] = {'precision': precision.item(),
+                      'recall': recall.item(),
+                      'f1': f1.item()}
+    return metrics
+
+# Teste
+pred = torch.tensor([0, 1, 1, 0, 2, 1, 0, 2])
+true = torch.tensor([0, 1, 0, 0, 2, 2, 1, 2])
+
+print(f"Accuracy: {accuracy(pred, true):.4f}")
+print(f"Métricas por classe: {precision_recall_f1(pred, true, 3)}")
+</CodeCell>
+
+## Métricas de Regressão
+
+<CodeCell id="regression-metrics">
+import torch
+
+def mse(predictions, targets):
+    return ((predictions - targets) ** 2).mean()
+
+def mae(predictions, targets):
+    return (predictions - targets).abs().mean()
+
+def r2_score(predictions, targets):
+    ss_res = ((targets - predictions) ** 2).sum()
+    ss_tot = ((targets - targets.mean()) ** 2).sum()
+    return 1 - ss_res / ss_tot
+
+# Teste
+pred = torch.tensor([2.5, 0.0, 2.1, 7.8])
+true = torch.tensor([3.0, -0.5, 2.0, 8.0])
+
+print(f"MSE: {mse(pred, true):.4f}")
+print(f"MAE: {mae(pred, true):.4f}")
+print(f"R²: {r2_score(pred, true):.4f}")
+</CodeCell>
+
+## Early Stopping
+
+<CodeCell id="early-stopping">
+class EarlyStopping:
+    def __init__(self, patience=5, min_delta=0):
+        self.patience = patience
+        self.min_delta = min_delta
+        self.counter = 0
+        self.best_loss = None
+        self.should_stop = False
+
+    def __call__(self, val_loss):
+        if self.best_loss is None:
+            self.best_loss = val_loss
+        elif val_loss > self.best_loss - self.min_delta:
+            self.counter += 1
+            if self.counter >= self.patience:
+                self.should_stop = True
+        else:
+            self.best_loss = val_loss
+            self.counter = 0
+
+        return self.should_stop
+
+# Simular uso
+early_stop = EarlyStopping(patience=3)
+losses = [0.5, 0.4, 0.35, 0.36, 0.37, 0.38, 0.39]
+
+for epoch, loss in enumerate(losses):
+    stop = early_stop(loss)
+    print(f"Epoch {epoch}: loss={loss}, counter={early_stop.counter}, stop={stop}")
+    if stop:
+        print("Early stopping!")
+        break
+</CodeCell>
+
+## Loop com Validação Completo
+
+<CodeCell id="full-validation-loop">
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from torch.utils.data import DataLoader, TensorDataset, random_split
+
+# Dados
+torch.manual_seed(42)
+X = torch.randn(1000, 10)
+y = (X.sum(1) > 0).long()
+dataset = TensorDataset(X, y)
+train_ds, val_ds = random_split(dataset, [800, 200])
+
+train_loader = DataLoader(train_ds, batch_size=32, shuffle=True)
+val_loader = DataLoader(val_ds, batch_size=32)
+
+# Modelo
+model = nn.Sequential(nn.Linear(10, 32), nn.ReLU(), nn.Linear(32, 2))
+criterion = nn.CrossEntropyLoss()
+optimizer = optim.Adam(model.parameters())
+
+# Early stopping
+early_stop = EarlyStopping(patience=5)
+best_val_loss = float('inf')
+
+for epoch in range(50):
+    # Treino
+    model.train()
+    for X_batch, y_batch in train_loader:
+        optimizer.zero_grad()
+        loss = criterion(model(X_batch), y_batch)
+        loss.backward()
+        optimizer.step()
+
+    # Validação
+    model.eval()
+    val_loss = 0
+    correct = 0
+    with torch.no_grad():
+        for X_batch, y_batch in val_loader:
+            out = model(X_batch)
+            val_loss += criterion(out, y_batch).item()
+            correct += (out.argmax(1) == y_batch).sum().item()
+
+    val_loss /= len(val_loader)
+    val_acc = correct / len(val_ds)
+
+    print(f"Epoch {epoch+1}: Val Loss={val_loss:.4f}, Val Acc={val_acc:.4f}")
+
+    if early_stop(val_loss):
+        print(f"Early stopping at epoch {epoch+1}")
+        break
+</CodeCell>
+
+## Exercícios
+
+<Exercise id="ex-accuracy" difficulty="easy">
+Calcule a accuracy de predictions [0,1,1,0,2] vs targets [0,1,0,1,2].
+</Exercise>
+
+## Resumo
+
+- Accuracy, Precision, Recall, F1 para classificação
+- MSE, MAE, R² para regressão
+- Early stopping previne overfitting
+- Sempre monitore validação, não apenas treino
+
+Você completou a Seção 4: Dados e Treinamento!

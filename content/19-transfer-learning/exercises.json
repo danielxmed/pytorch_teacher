@@ -1,0 +1,17 @@
+{
+  "ex-freeze-layers": {
+    "starterCode": "import torch\nimport torch.nn as nn\n\nmodel = nn.Sequential(\n    nn.Linear(100, 64),\n    nn.ReLU(),\n    nn.Linear(64, 32),\n    nn.ReLU(),\n    nn.Linear(32, 10)  # Última camada\n)\n\n# Congele todas as camadas exceto a última (índice 4)\nfor i, layer in enumerate(model):\n    if i < 4:  # Camadas 0-3\n        # Congele aqui\n        pass\n\n# Conte parâmetros\ntrainable = sum(p.numel() for p in model.parameters() if p.requires_grad)\nfrozen = sum(p.numel() for p in model.parameters() if not p.requires_grad)\n\nprint(f'Treináveis: {trainable}')\nprint(f'Congelados: {frozen}')",
+    "hints": [
+      "Para cada layer, itere sobre layer.parameters()",
+      "Defina param.requires_grad = False para congelar"
+    ],
+    "validation": {
+      "type": "assert",
+      "tests": [
+        "assert trainable == 32 * 10 + 10, f'Treináveis incorreto: esperado 330, obtido {trainable}'",
+        "assert frozen == 100*64 + 64 + 64*32 + 32, f'Congelados incorreto'"
+      ]
+    },
+    "solution": "for i, layer in enumerate(model):\n    if i < 4:\n        for param in layer.parameters():\n            param.requires_grad = False"
+  }
+}

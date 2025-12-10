@@ -1,0 +1,146 @@
+---
+title: "RNNs e LSTMs"
+order: 17
+prerequisites: ["09-builtin-layers", "12-training-loop"]
+estimatedMinutes: 50
+pytorchVersion: "2.2"
+---
+
+# RNNs e LSTMs: Sequências e Memória
+
+Redes recorrentes processam dados sequenciais mantendo um estado interno.
+
+## RNN Básica
+
+<CodeCell id="basic-rnn">
+import torch
+import torch.nn as nn
+
+# RNN layer
+rnn = nn.RNN(
+    input_size=32,    # Features por timestep
+    hidden_size=64,   # Tamanho do hidden state
+    num_layers=1,
+    batch_first=True  # Input: (batch, seq, features)
+)
+
+# Input: sequência de 100 timesteps
+x = torch.randn(16, 100, 32)  # (batch, seq_len, input_size)
+output, hidden = rnn(x)
+
+print(f"Input: {x.shape}")
+print(f"Output: {output.shape}")  # (batch, seq, hidden)
+print(f"Hidden: {hidden.shape}")  # (num_layers, batch, hidden)
+</CodeCell>
+
+<DocRef symbol="torch.nn.RNN" />
+
+## LSTM (Long Short-Term Memory)
+
+<CodeCell id="lstm">
+import torch.nn as nn
+
+lstm = nn.LSTM(
+    input_size=32,
+    hidden_size=64,
+    num_layers=2,
+    batch_first=True,
+    dropout=0.1,  # Dropout entre camadas
+    bidirectional=False
+)
+
+x = torch.randn(16, 100, 32)
+output, (hidden, cell) = lstm(x)
+
+print(f"Output: {output.shape}")
+print(f"Hidden: {hidden.shape}")  # Estado oculto
+print(f"Cell: {cell.shape}")      # Estado da célula (memória)
+</CodeCell>
+
+<Callout type="tip">
+LSTM resolve o problema de vanishing gradient das RNNs básicas através de gates que controlam o fluxo de informação.
+</Callout>
+
+## GRU (Gated Recurrent Unit)
+
+<CodeCell id="gru">
+import torch.nn as nn
+
+gru = nn.GRU(
+    input_size=32,
+    hidden_size=64,
+    num_layers=2,
+    batch_first=True
+)
+
+x = torch.randn(16, 100, 32)
+output, hidden = gru(x)
+
+print(f"Output: {output.shape}")
+print(f"Hidden: {hidden.shape}")
+</CodeCell>
+
+## Modelo de Classificação de Sequências
+
+<CodeCell id="seq-classification">
+import torch.nn as nn
+
+class LSTMClassifier(nn.Module):
+    def __init__(self, vocab_size, embed_dim, hidden_dim, num_classes):
+        super().__init__()
+        self.embedding = nn.Embedding(vocab_size, embed_dim)
+        self.lstm = nn.LSTM(embed_dim, hidden_dim, batch_first=True)
+        self.fc = nn.Linear(hidden_dim, num_classes)
+
+    def forward(self, x):
+        # x: (batch, seq_len) - índices de palavras
+        embedded = self.embedding(x)  # (batch, seq, embed)
+        output, (hidden, cell) = self.lstm(embedded)
+        # Usar último hidden state para classificação
+        return self.fc(hidden[-1])
+
+model = LSTMClassifier(
+    vocab_size=10000,
+    embed_dim=128,
+    hidden_dim=256,
+    num_classes=5
+)
+
+x = torch.randint(0, 10000, (32, 50))  # 32 sequências de 50 tokens
+out = model(x)
+print(f"Output: {out.shape}")  # (32, 5)
+</CodeCell>
+
+## Bidirectional
+
+<CodeCell id="bidirectional">
+import torch.nn as nn
+
+bilstm = nn.LSTM(
+    input_size=32,
+    hidden_size=64,
+    bidirectional=True,
+    batch_first=True
+)
+
+x = torch.randn(16, 100, 32)
+output, (hidden, cell) = bilstm(x)
+
+# Output dobra porque concatena forward e backward
+print(f"Output: {output.shape}")  # (16, 100, 128)
+print(f"Hidden: {hidden.shape}")  # (2, 16, 64) - 2 direções
+</CodeCell>
+
+## Exercícios
+
+<Exercise id="ex-lstm-output" difficulty="medium">
+Crie um LSTM com hidden_size=128 e calcule o tamanho do output para input shape (8, 50, 64).
+</Exercise>
+
+## Resumo
+
+- RNN: Processa sequências com estado oculto
+- LSTM: Adiciona cell state para memória de longo prazo
+- GRU: Versão simplificada do LSTM
+- Bidirectional: Processa em ambas direções
+- Classificação: Usar último hidden state

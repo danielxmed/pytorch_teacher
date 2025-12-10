@@ -1,0 +1,49 @@
+{
+  "ex-simple-grad": {
+    "starterCode": "import torch\n\n# Crie x com requires_grad=True\nx = torch.tensor([3.0], requires_grad=True)\n\n# Calcule y = x³\ny = \n\n# Faça backward\n\n\n# Extraia o gradiente\ngradient = ",
+    "hints": [
+      "Use x ** 3 para calcular o cubo",
+      "Chame y.backward() para calcular os gradientes",
+      "O gradiente está em x.grad",
+      "Derivada de x³ é 3x², então em x=3: 3*3² = 27"
+    ],
+    "validation": {
+      "type": "assert",
+      "tests": [
+        "assert gradient.item() == 27.0, f'Gradiente incorreto: esperado 27.0, obtido {gradient.item()}'"
+      ]
+    },
+    "solution": "y = x ** 3\ny.backward()\ngradient = x.grad"
+  },
+  "ex-chain": {
+    "starterCode": "import torch\n\nx = torch.tensor([2.0], requires_grad=True)\n\n# Calcule y = x² + 3x\ny = \n\n# Faça backward e extraia o gradiente\n\ngrad_y = ",
+    "hints": [
+      "y = x**2 + 3*x",
+      "Chame y.backward()",
+      "A derivada de x² + 3x é 2x + 3",
+      "Em x=2: 2(2) + 3 = 7"
+    ],
+    "validation": {
+      "type": "assert",
+      "tests": [
+        "assert grad_y.item() == 7.0, f'Gradiente incorreto: esperado 7.0, obtido {grad_y.item()}'"
+      ]
+    },
+    "solution": "y = x**2 + 3*x\ny.backward()\ngrad_y = x.grad"
+  },
+  "ex-no-accumulate": {
+    "starterCode": "import torch\n\nx = torch.tensor([5.0], requires_grad=True)\n\n# Primeira operação: y1 = x²\ny1 = x ** 2\ny1.backward()\nprint('Primeiro gradiente:', x.grad.item())\n\n# IMPORTANTE: Limpe os gradientes antes da segunda operação!\n\n\n# Segunda operação: y2 = x³\ny2 = x ** 3\ny2.backward()\n\n# Este gradiente deve ser 3x² = 75, NÃO 10 + 75 = 85\ncorrect_grad = ",
+    "hints": [
+      "Use x.grad.zero_() para zerar os gradientes",
+      "Isso deve ser feito APÓS o primeiro backward e ANTES do segundo",
+      "A derivada de x³ é 3x² = 3*25 = 75"
+    ],
+    "validation": {
+      "type": "assert",
+      "tests": [
+        "assert correct_grad.item() == 75.0, f'Gradiente incorreto: esperado 75.0, obtido {correct_grad.item()}. Você zerou os gradientes?'"
+      ]
+    },
+    "solution": "x.grad.zero_()\ncorrect_grad = x.grad"
+  }
+}

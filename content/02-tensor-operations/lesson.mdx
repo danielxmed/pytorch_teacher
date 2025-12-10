@@ -1,0 +1,254 @@
+---
+title: "Operações com Tensores"
+order: 2
+prerequisites: ["01-tensors"]
+estimatedMinutes: 50
+pytorchVersion: "2.2"
+---
+
+# Operações com Tensores
+
+Agora que você sabe criar tensores, vamos aprender a manipulá-los. PyTorch oferece centenas de operações, desde aritmética básica até álgebra linear avançada.
+
+## Operações Aritméticas
+
+As operações básicas funcionam elemento a elemento:
+
+<CodeCell id="arithmetic-basic">
+import torch
+
+a = torch.tensor([1, 2, 3, 4])
+b = torch.tensor([10, 20, 30, 40])
+
+print("a:", a)
+print("b:", b)
+print()
+
+# Adição
+print("a + b:", a + b)
+print("torch.add(a, b):", torch.add(a, b))
+
+# Subtração
+print("a - b:", a - b)
+
+# Multiplicação (elemento a elemento)
+print("a * b:", a * b)
+
+# Divisão
+print("b / a:", b / a)
+
+# Potenciação
+print("a ** 2:", a ** 2)
+</CodeCell>
+
+<Callout type="info">
+Operadores como `+`, `-`, `*`, `/` são atalhos para funções como `torch.add()`, `torch.sub()`, `torch.mul()`, `torch.div()`.
+</Callout>
+
+## Operações In-Place
+
+Operações com sufixo `_` modificam o tensor original:
+
+<CodeCell id="inplace">
+import torch
+
+x = torch.tensor([1, 2, 3, 4], dtype=torch.float32)
+print("Original:", x)
+
+# Operação normal (cria novo tensor)
+y = x.add(10)
+print("Após x.add(10):")
+print("  x:", x)
+print("  y:", y)
+
+# Operação in-place (modifica x)
+x.add_(10)
+print("\nApós x.add_(10):")
+print("  x:", x)
+</CodeCell>
+
+<Callout type="warning">
+Operações in-place economizam memória mas podem causar problemas com autograd. Use com cuidado em contextos de treinamento.
+</Callout>
+
+## Indexação e Slicing
+
+PyTorch usa a mesma sintaxe de slicing do NumPy:
+
+<CodeCell id="slicing">
+import torch
+
+t = torch.arange(1, 13).reshape(3, 4)
+print("Tensor original:\n", t)
+
+# Slicing de linhas
+print("\nPrimeiras 2 linhas:\n", t[:2])
+
+# Slicing de colunas
+print("\nColunas 1 a 3:\n", t[:, 1:3])
+
+# Seleção com step
+print("\nLinhas pares, todas colunas:\n", t[::2, :])
+
+# Seleção de elementos específicos
+print("\nElemento [1,2]:", t[1, 2])
+
+# Indexação booleana
+mask = t > 6
+print("\nMáscara (elementos > 6):\n", mask)
+print("Elementos > 6:", t[mask])
+</CodeCell>
+
+<DocRef symbol="torch.Tensor" />
+
+## Broadcasting
+
+Broadcasting permite operações entre tensores de shapes diferentes, expandindo automaticamente as dimensões:
+
+<CodeCell id="broadcasting">
+import torch
+
+# Tensor 2D
+matrix = torch.tensor([[1, 2, 3],
+                       [4, 5, 6]])
+print("Matrix (2x3):\n", matrix)
+
+# Vetor 1D
+vector = torch.tensor([10, 20, 30])
+print("\nVector (3,):", vector)
+
+# Broadcasting: o vetor é "expandido" para cada linha
+result = matrix + vector
+print("\nMatrix + Vector (broadcast):\n", result)
+
+# Escalar também é broadcast
+print("\nMatrix * 2:\n", matrix * 2)
+</CodeCell>
+
+<Callout type="important" title="Regras de Broadcasting">
+1. Se os tensores têm número diferente de dimensões, o menor ganha dimensões de tamanho 1 à esquerda
+2. Dimensões são compatíveis se têm o mesmo tamanho ou se uma delas é 1
+3. A dimensão resultante é o máximo entre as dimensões correspondentes
+</Callout>
+
+## Funções de Agregação
+
+Funções que reduzem tensores a valores escalares ou tensores menores:
+
+<CodeCell id="aggregation">
+import torch
+
+t = torch.tensor([[1., 2., 3.],
+                  [4., 5., 6.]])
+print("Tensor:\n", t)
+
+# Agregações globais
+print("\nSoma total:", t.sum())
+print("Média:", t.mean())
+print("Máximo:", t.max())
+print("Mínimo:", t.min())
+print("Desvio padrão:", t.std())
+
+# Agregações por eixo
+print("\nSoma por coluna (dim=0):", t.sum(dim=0))
+print("Soma por linha (dim=1):", t.sum(dim=1))
+
+# Mantendo dimensões
+print("\nMédia por linha (keepdim=True):", t.mean(dim=1, keepdim=True))
+</CodeCell>
+
+<DocRef symbol="torch.sum" />
+
+## Comparações
+
+Operações de comparação retornam tensores booleanos:
+
+<CodeCell id="comparisons">
+import torch
+
+a = torch.tensor([1, 2, 3, 4, 5])
+b = torch.tensor([1, 3, 2, 4, 6])
+
+print("a:", a)
+print("b:", b)
+
+print("\na == b:", a == b)
+print("a > b:", a > b)
+print("a >= b:", a >= b)
+
+# Verificações
+print("\nTodos iguais?", torch.all(a == b))
+print("Algum a > 3?", torch.any(a > 3))
+
+# Comparação com escalar
+print("\na > 2:", a > 2)
+</CodeCell>
+
+## Operações de Álgebra Linear
+
+PyTorch tem suporte completo para álgebra linear:
+
+<CodeCell id="linear-algebra">
+import torch
+
+# Produto escalar (dot product)
+a = torch.tensor([1., 2., 3.])
+b = torch.tensor([4., 5., 6.])
+print("Dot product:", torch.dot(a, b))
+
+# Multiplicação de matrizes
+A = torch.tensor([[1., 2.],
+                  [3., 4.]])
+B = torch.tensor([[5., 6.],
+                  [7., 8.]])
+
+# Três formas equivalentes:
+print("\nMatmul:")
+print("torch.matmul(A, B):\n", torch.matmul(A, B))
+print("A @ B:\n", A @ B)
+print("torch.mm(A, B):\n", torch.mm(A, B))
+
+# Transposta
+print("\nTransposta de A:\n", A.T)
+
+# Norma
+v = torch.tensor([3., 4.])
+print("\nNorma de [3, 4]:", torch.norm(v))
+</CodeCell>
+
+<Callout type="tip">
+Use `@` para multiplicação de matrizes (matmul) e `*` para multiplicação elemento a elemento. São operações muito diferentes!
+</Callout>
+
+<DocRef symbol="torch.matmul" />
+
+## Exercícios
+
+<Exercise id="ex-arithmetic" difficulty="easy">
+Dados dois tensores `a = torch.tensor([1, 2, 3, 4])` e `b = torch.tensor([5, 6, 7, 8])`, calcule a soma dos produtos elemento a elemento (dot product) sem usar torch.dot(). Armazene o resultado em `result`.
+</Exercise>
+
+<Exercise id="ex-broadcasting" difficulty="medium">
+Normalize as linhas de uma matriz para que cada linha some 1. Dado `matrix = torch.tensor([[1., 2., 3.], [4., 5., 6.]])`, crie `normalized` onde cada linha é dividida pela sua soma.
+</Exercise>
+
+<Exercise id="ex-slicing" difficulty="medium">
+Dado um tensor `t = torch.arange(1, 17).reshape(4, 4)`, extraia a submatriz 2x2 central (linhas 1-2, colunas 1-2) e armazene em `center`.
+</Exercise>
+
+<Exercise id="ex-mask" difficulty="hard">
+Dado `t = torch.randn(5, 5)`, substitua todos os valores negativos por zero e armazene em `clipped`. Use indexação booleana.
+</Exercise>
+
+## Resumo
+
+Neste módulo você aprendeu:
+- Operações aritméticas elemento a elemento
+- Operações in-place com sufixo `_`
+- Indexação e slicing avançados
+- Broadcasting para operações entre tensores de shapes diferentes
+- Funções de agregação (sum, mean, max, etc.)
+- Comparações e máscaras booleanas
+- Álgebra linear básica (matmul, dot, transposta)
+
+No próximo módulo, vamos aprender a manipular shapes de tensores!

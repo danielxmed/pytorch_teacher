@@ -1,0 +1,34 @@
+{
+  "ex-graph-understand": {
+    "starterCode": "import torch\n\nx = torch.tensor([3.0], requires_grad=True)\na = x * 2      # a = 2x\nb = a + x      # b = 2x + x = 3x  \nc = b ** 2     # c = (3x)² = 9x²\n\nc.backward()\n\n# Qual é o gradiente? dc/dx = d(9x²)/dx = 18x = 18*3 = ?\npredicted_grad = ",
+    "hints": [
+      "c = (3x)² = 9x²",
+      "dc/dx = 18x",
+      "Em x=3: 18 * 3 = 54"
+    ],
+    "validation": {
+      "type": "assert",
+      "tests": [
+        "assert x.grad.item() == 54.0, f'Gradiente real é {x.grad.item()}'",
+        "assert predicted_grad == 54 or (hasattr(predicted_grad, 'item') and predicted_grad.item() == 54), f'Sua previsão {predicted_grad} está incorreta. O gradiente correto é 54'"
+      ]
+    },
+    "solution": "predicted_grad = 54"
+  },
+  "ex-detach-use": {
+    "starterCode": "import torch\n\nx = torch.tensor([5.0], requires_grad=True)\n\n# Calcule y = x² (com gradientes)\ny = x ** 2\n\n# Crie log_value que é x² mas SEM afetar gradientes\nlog_value = \n\n# Verificação\ny.backward()\nprint(f'x.grad: {x.grad}')",
+    "hints": [
+      "Use .detach() para criar uma cópia sem conexão ao grafo",
+      "log_value = y.detach() ou log_value = (x**2).detach()"
+    ],
+    "validation": {
+      "type": "assert",
+      "tests": [
+        "assert log_value.item() == 25.0, f'Valor incorreto: esperado 25.0, obtido {log_value.item()}'",
+        "assert not log_value.requires_grad, 'log_value não deveria ter requires_grad=True'",
+        "assert log_value.grad_fn is None, 'log_value não deveria ter grad_fn'"
+      ]
+    },
+    "solution": "log_value = y.detach()"
+  }
+}

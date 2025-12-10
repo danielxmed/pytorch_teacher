@@ -1,0 +1,66 @@
+{
+  "ex-reshape": {
+    "starterCode": "import torch\n\nt = torch.arange(24)\nprint('Original:', t.shape)\n\n# Reshape para (2, 3, 4)\nreshaped = ",
+    "hints": [
+      "Use t.view(2, 3, 4) ou t.reshape(2, 3, 4)",
+      "Verifique: 2 * 3 * 4 = 24, igual ao número de elementos"
+    ],
+    "validation": {
+      "type": "assert",
+      "tests": [
+        "assert reshaped.shape == torch.Size([2, 3, 4]), f'Shape incorreto: esperado (2, 3, 4), obtido {tuple(reshaped.shape)}'",
+        "assert reshaped[0, 0, 0] == 0, 'Primeiro elemento deveria ser 0'",
+        "assert reshaped[1, 2, 3] == 23, 'Último elemento deveria ser 23'"
+      ]
+    },
+    "solution": "reshaped = t.view(2, 3, 4)"
+  },
+  "ex-batch-dim": {
+    "starterCode": "import torch\n\nimg = torch.rand(3, 32, 32)\nprint('Original:', img.shape)\n\n# Adicione dimensão de batch no início\nbatched = ",
+    "hints": [
+      "Use unsqueeze(0) para adicionar uma dimensão na posição 0",
+      "Alternativamente: img.view(1, 3, 32, 32) ou img[None, ...]"
+    ],
+    "validation": {
+      "type": "assert",
+      "tests": [
+        "assert batched.shape == torch.Size([1, 3, 32, 32]), f'Shape incorreto: esperado (1, 3, 32, 32), obtido {tuple(batched.shape)}'",
+        "assert torch.equal(batched[0], img), 'O conteúdo deveria ser igual ao original'"
+      ]
+    },
+    "solution": "batched = img.unsqueeze(0)"
+  },
+  "ex-permute": {
+    "starterCode": "import torch\n\nt = torch.rand(16, 3, 224, 224)  # NCHW\nprint('Original (NCHW):', t.shape)\n\n# Converta para NHWC\nt_nhwc = ",
+    "hints": [
+      "Use permute para reordenar as dimensões",
+      "NCHW (0,1,2,3) -> NHWC significa a ordem (0, 2, 3, 1)",
+      "Batch (0) fica na mesma posição, canais (1) vai para o final"
+    ],
+    "validation": {
+      "type": "assert",
+      "tests": [
+        "assert t_nhwc.shape == torch.Size([16, 224, 224, 3]), f'Shape incorreto: esperado (16, 224, 224, 3), obtido {tuple(t_nhwc.shape)}'"
+      ]
+    },
+    "solution": "t_nhwc = t.permute(0, 2, 3, 1)"
+  },
+  "ex-combine": {
+    "starterCode": "import torch\n\na = torch.ones(2, 3)\nb = torch.ones(2, 3) * 2\nc = torch.ones(2, 3) * 3\n\nprint('a:', a.shape)\nprint('b:', b.shape)\nprint('c:', c.shape)\n\n# Stack e flatten para shape (3, 6)\ncombined = ",
+    "hints": [
+      "Primeiro use torch.stack([a, b, c]) para criar shape (3, 2, 3)",
+      "Depois use flatten(start_dim=1) para achatar as dimensões 2 e 3",
+      "Alternativamente: view(3, -1) após o stack"
+    ],
+    "validation": {
+      "type": "assert",
+      "tests": [
+        "assert combined.shape == torch.Size([3, 6]), f'Shape incorreto: esperado (3, 6), obtido {tuple(combined.shape)}'",
+        "assert combined[0].sum() == 6, 'Primeira linha (de a) deveria somar 6'",
+        "assert combined[1].sum() == 12, 'Segunda linha (de b) deveria somar 12'",
+        "assert combined[2].sum() == 18, 'Terceira linha (de c) deveria somar 18'"
+      ]
+    },
+    "solution": "combined = torch.stack([a, b, c]).flatten(start_dim=1)"
+  }
+}

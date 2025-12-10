@@ -1,0 +1,35 @@
+{
+  "ex-custom-dataset": {
+    "starterCode": "import torch\nfrom torch.utils.data import Dataset\n\nclass SquareDataset(Dataset):\n    def __init__(self):\n        # x vai de 0 a 99\n        pass\n    \n    def __len__(self):\n        pass\n    \n    def __getitem__(self, idx):\n        # Retorna (x, x²)\n        pass\n\n# Criar dataset\ndataset = SquareDataset()\nprint(f'Tamanho: {len(dataset)}')\nprint(f'dataset[5] = {dataset[5]}')",
+    "hints": [
+      "self.data = torch.arange(100).float()",
+      "__len__ retorna len(self.data)",
+      "__getitem__ retorna (self.data[idx], self.data[idx] ** 2)"
+    ],
+    "validation": {
+      "type": "assert",
+      "tests": [
+        "assert len(dataset) == 100, f'Tamanho incorreto: {len(dataset)}'",
+        "x, y = dataset[5]",
+        "assert x == 5.0, f'x[5] incorreto: {x}'",
+        "assert y == 25.0, f'y[5] incorreto: {y}'"
+      ]
+    },
+    "solution": "class SquareDataset(Dataset):\n    def __init__(self):\n        self.data = torch.arange(100).float()\n    \n    def __len__(self):\n        return len(self.data)\n    \n    def __getitem__(self, idx):\n        x = self.data[idx]\n        return x, x ** 2"
+  },
+  "ex-dataloader-config": {
+    "starterCode": "import torch\nfrom torch.utils.data import TensorDataset, DataLoader\n\nX = torch.randn(100, 5)\ny = torch.randint(0, 2, (100,))\ndataset = TensorDataset(X, y)\n\n# Crie DataLoader com batch_size=16, shuffle=True\nloader = \n\nprint(f'Batches: {len(loader)}')",
+    "hints": [
+      "DataLoader(dataset, batch_size=16, shuffle=True)"
+    ],
+    "validation": {
+      "type": "assert",
+      "tests": [
+        "assert len(loader) == 7, f'Número de batches incorreto: {len(loader)}'",
+        "batch = next(iter(loader))",
+        "assert batch[0].shape[0] == 16, 'Batch size incorreto'"
+      ]
+    },
+    "solution": "loader = DataLoader(dataset, batch_size=16, shuffle=True)"
+  }
+}

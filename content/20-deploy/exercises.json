@@ -1,0 +1,19 @@
+{
+  "ex-torchscript": {
+    "starterCode": "import torch\nimport torch.nn as nn\n\nclass MyModel(nn.Module):\n    def __init__(self):\n        super().__init__()\n        self.fc = nn.Linear(10, 5)\n    \n    def forward(self, x):\n        return torch.relu(self.fc(x))\n\nmodel = MyModel()\nmodel.eval()\n\n# Converta para TorchScript usando trace\nexample_input = torch.randn(1, 10)\ntraced = \n\n# Verifique que outputs são iguais\nwith torch.no_grad():\n    original_out = model(example_input)\n    traced_out = traced(example_input)\n    \nprint(f'Outputs iguais: {torch.allclose(original_out, traced_out)}')",
+    "hints": [
+      "Use torch.jit.trace(model, example_input)",
+      "O traced model deve produzir o mesmo output"
+    ],
+    "validation": {
+      "type": "assert",
+      "tests": [
+        "assert traced is not None, 'traced não foi definido'",
+        "with torch.no_grad():",
+        "    test_input = torch.randn(4, 10)",
+        "    assert torch.allclose(model(test_input), traced(test_input)), 'Outputs devem ser iguais'"
+      ]
+    },
+    "solution": "traced = torch.jit.trace(model, example_input)"
+  }
+}

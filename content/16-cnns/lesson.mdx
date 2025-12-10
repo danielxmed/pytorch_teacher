@@ -1,0 +1,166 @@
+---
+title: "CNNs: Redes Neurais Convolucionais"
+order: 16
+prerequisites: ["09-builtin-layers", "12-training-loop"]
+estimatedMinutes: 55
+pytorchVersion: "2.2"
+---
+
+# CNNs: Redes Neurais Convolucionais
+
+CNNs são especializadas em processar dados com estrutura espacial, como imagens.
+
+## Convolução 2D
+
+<CodeCell id="conv2d-basics">
+import torch
+import torch.nn as nn
+
+# Convolução básica
+conv = nn.Conv2d(
+    in_channels=3,    # RGB
+    out_channels=32,  # 32 filtros
+    kernel_size=3,    # 3x3
+    padding=1,        # Mantém tamanho
+    stride=1
+)
+
+# Input: (batch, channels, height, width)
+x = torch.randn(8, 3, 32, 32)
+out = conv(x)
+
+print(f"Input: {x.shape}")
+print(f"Output: {out.shape}")
+print(f"Parâmetros: {sum(p.numel() for p in conv.parameters())}")
+</CodeCell>
+
+## Pooling
+
+<CodeCell id="pooling-demo">
+import torch
+import torch.nn as nn
+
+x = torch.arange(16).reshape(1, 1, 4, 4).float()
+print("Input:\n", x[0, 0])
+
+# Max Pooling
+maxpool = nn.MaxPool2d(kernel_size=2, stride=2)
+print("\nMaxPool (2x2):\n", maxpool(x)[0, 0])
+
+# Average Pooling
+avgpool = nn.AvgPool2d(kernel_size=2, stride=2)
+print("\nAvgPool (2x2):\n", avgpool(x)[0, 0])
+
+# Global Average Pooling
+gap = nn.AdaptiveAvgPool2d((1, 1))
+print("\nGlobal Avg Pool:\n", gap(x))
+</CodeCell>
+
+## CNN Simples (LeNet-style)
+
+<CodeCell id="simple-cnn">
+import torch
+import torch.nn as nn
+
+class SimpleCNN(nn.Module):
+    def __init__(self, num_classes=10):
+        super().__init__()
+        # Feature extractor
+        self.features = nn.Sequential(
+            nn.Conv2d(1, 32, 3, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(2),
+            nn.Conv2d(32, 64, 3, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(2),
+        )
+        # Classifier
+        self.classifier = nn.Sequential(
+            nn.Flatten(),
+            nn.Linear(64 * 7 * 7, 128),
+            nn.ReLU(),
+            nn.Dropout(0.5),
+            nn.Linear(128, num_classes)
+        )
+
+    def forward(self, x):
+        x = self.features(x)
+        x = self.classifier(x)
+        return x
+
+model = SimpleCNN()
+x = torch.randn(4, 1, 28, 28)  # MNIST-like
+print(f"Output: {model(x).shape}")
+print(f"Total params: {sum(p.numel() for p in model.parameters()):,}")
+</CodeCell>
+
+## Batch Normalization em CNNs
+
+<CodeCell id="batchnorm-cnn">
+import torch.nn as nn
+
+class CNNWithBN(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.conv1 = nn.Conv2d(3, 64, 3, padding=1)
+        self.bn1 = nn.BatchNorm2d(64)
+        self.conv2 = nn.Conv2d(64, 128, 3, padding=1)
+        self.bn2 = nn.BatchNorm2d(128)
+        self.pool = nn.MaxPool2d(2)
+
+    def forward(self, x):
+        x = self.pool(torch.relu(self.bn1(self.conv1(x))))
+        x = self.pool(torch.relu(self.bn2(self.conv2(x))))
+        return x
+
+model = CNNWithBN()
+x = torch.randn(4, 3, 32, 32)
+print(f"Output: {model(x).shape}")
+</CodeCell>
+
+## Bloco Residual (ResNet)
+
+<CodeCell id="residual-block">
+import torch.nn as nn
+
+class ResidualBlock(nn.Module):
+    def __init__(self, channels):
+        super().__init__()
+        self.conv1 = nn.Conv2d(channels, channels, 3, padding=1)
+        self.bn1 = nn.BatchNorm2d(channels)
+        self.conv2 = nn.Conv2d(channels, channels, 3, padding=1)
+        self.bn2 = nn.BatchNorm2d(channels)
+
+    def forward(self, x):
+        residual = x
+        out = torch.relu(self.bn1(self.conv1(x)))
+        out = self.bn2(self.conv2(out))
+        out += residual  # Skip connection!
+        return torch.relu(out)
+
+block = ResidualBlock(64)
+x = torch.randn(4, 64, 32, 32)
+print(f"Input: {x.shape} -> Output: {block(x).shape}")
+</CodeCell>
+
+<Callout type="important">
+Skip connections permitem treinar redes muito profundas. Elas resolvem o problema de vanishing gradients.
+</Callout>
+
+## Exercícios
+
+<Exercise id="ex-conv-output-size" difficulty="medium">
+Para uma imagem 64x64 passando por Conv2d(3, 32, kernel_size=5, stride=2, padding=0), qual é o output size? Calcule e verifique.
+</Exercise>
+
+<Exercise id="ex-simple-conv" difficulty="medium">
+Crie uma CNN com: Conv2d(1, 16, 3) -> ReLU -> MaxPool2d(2) -> Flatten -> Linear(?, 10). O input é 28x28.
+</Exercise>
+
+## Resumo
+
+- Conv2d extrai features espaciais
+- Pooling reduz dimensionalidade
+- BatchNorm estabiliza treino
+- Skip connections (ResNet) para redes profundas
+- Pattern: [Conv -> BN -> ReLU -> Pool] repetido

@@ -1,0 +1,254 @@
+---
+title: "Introdução ao Autograd"
+order: 5
+prerequisites: ["01-tensors", "02-tensor-operations"]
+estimatedMinutes: 45
+pytorchVersion: "2.2"
+---
+
+# Introdução ao Autograd
+
+O **autograd** é o motor de diferenciação automática do PyTorch. Ele permite calcular gradientes automaticamente, o que é essencial para treinar redes neurais com backpropagation.
+
+## Por que precisamos de gradientes?
+
+Em deep learning, treinamos redes ajustando seus parâmetros para minimizar uma função de perda. Para saber como ajustar cada parâmetro, precisamos do **gradiente** da perda em relação a cada parâmetro.
+
+<Callout type="info">
+O gradiente indica a direção de maior aumento da função. Para minimizar a perda, movemos os parâmetros na direção oposta ao gradiente.
+</Callout>
+
+## requires_grad
+
+Para que o PyTorch rastreie operações para cálculo de gradientes, precisamos definir `requires_grad=True`:
+
+<CodeCell id="requires-grad">
+import torch
+
+# Tensor SEM rastreamento de gradiente
+a = torch.tensor([1.0, 2.0, 3.0])
+print("a.requires_grad:", a.requires_grad)
+
+# Tensor COM rastreamento de gradiente
+b = torch.tensor([1.0, 2.0, 3.0], requires_grad=True)
+print("b.requires_grad:", b.requires_grad)
+
+# Também podemos ativar depois
+c = torch.tensor([1.0, 2.0, 3.0])
+c.requires_grad_(True)  # In-place
+print("c.requires_grad:", c.requires_grad)
+</CodeCell>
+
+<DocRef symbol="torch.Tensor.requires_grad" />
+
+## Exemplo Simples
+
+Vamos calcular gradientes de uma função simples: y = x²
+
+<CodeCell id="simple-grad">
+import torch
+
+# Criar tensor com requires_grad
+x = torch.tensor([2.0], requires_grad=True)
+print("x:", x)
+
+# Operação
+y = x ** 2
+print("y = x²:", y)
+
+# Calcular gradiente (dy/dx = 2x)
+y.backward()
+
+# O gradiente é armazenado em x.grad
+print("dy/dx (em x=2):", x.grad)  # Esperado: 2*2 = 4
+</CodeCell>
+
+<Callout type="tip">
+A derivada de x² é 2x. Em x=2, a derivada é 2*2=4. O PyTorch calculou isso automaticamente!
+</Callout>
+
+## backward() - O Coração do Autograd
+
+O método `.backward()` calcula os gradientes de um escalar em relação a todos os tensores que têm `requires_grad=True`:
+
+<CodeCell id="backward">
+import torch
+
+# Múltiplos parâmetros
+a = torch.tensor([1.0], requires_grad=True)
+b = torch.tensor([2.0], requires_grad=True)
+c = torch.tensor([3.0], requires_grad=True)
+
+# Função: y = a*b + c
+y = a * b + c
+print("y = a*b + c =", y)
+
+# Calcular gradientes
+y.backward()
+
+print("\nGradientes:")
+print("dy/da =", a.grad)  # dy/da = b = 2
+print("dy/db =", b.grad)  # dy/db = a = 1
+print("dy/dc =", c.grad)  # dy/dc = 1
+</CodeCell>
+
+## Acumulação de Gradientes
+
+<Callout type="warning" title="Atenção!">
+Gradientes são **acumulados** por padrão! Você precisa zerá-los antes de cada backward se não quiser acumular.
+</Callout>
+
+<CodeCell id="grad-accumulation">
+import torch
+
+x = torch.tensor([2.0], requires_grad=True)
+
+# Primeiro backward
+y1 = x ** 2
+y1.backward()
+print("Após primeiro backward:", x.grad)
+
+# Segundo backward (ACUMULA!)
+y2 = x ** 2
+y2.backward()
+print("Após segundo backward:", x.grad)  # 4 + 4 = 8!
+
+# Zerar gradientes
+x.grad.zero_()
+print("Após zero_():", x.grad)
+
+# Terceiro backward (limpo)
+y3 = x ** 2
+y3.backward()
+print("Após terceiro backward:", x.grad)  # 4 (correto)
+</CodeCell>
+
+## grad_fn - Rastreando Operações
+
+Cada tensor criado por uma operação armazena uma referência à função que o criou:
+
+<CodeCell id="grad-fn">
+import torch
+
+x = torch.tensor([1.0, 2.0, 3.0], requires_grad=True)
+print("x.grad_fn:", x.grad_fn)  # None - é folha
+
+y = x * 2
+print("y.grad_fn:", y.grad_fn)  # MulBackward
+
+z = y.sum()
+print("z.grad_fn:", z.grad_fn)  # SumBackward
+
+# is_leaf indica se é um tensor folha (criado diretamente)
+print("\nx.is_leaf:", x.is_leaf)
+print("y.is_leaf:", y.is_leaf)
+</CodeCell>
+
+## torch.no_grad() - Desabilitando Gradientes
+
+Para inferência ou operações que não precisam de gradientes:
+
+<CodeCell id="no-grad">
+import torch
+
+x = torch.tensor([1.0], requires_grad=True)
+
+# COM gradientes
+y = x * 2
+print("Com gradientes:")
+print("  y.requires_grad:", y.requires_grad)
+print("  y.grad_fn:", y.grad_fn)
+
+# SEM gradientes
+with torch.no_grad():
+    z = x * 2
+    print("\nDentro de no_grad:")
+    print("  z.requires_grad:", z.requires_grad)
+    print("  z.grad_fn:", z.grad_fn)
+
+# Alternativa: detach()
+w = x.detach() * 2
+print("\nCom detach():")
+print("  w.requires_grad:", w.requires_grad)
+</CodeCell>
+
+<Callout type="tip">
+Use `torch.no_grad()` durante inferência para economizar memória e acelerar computações.
+</Callout>
+
+## Exemplo: Regressão Linear Simples
+
+Vamos ver o autograd em ação para ajustar uma linha:
+
+<CodeCell id="linear-regression">
+import torch
+
+# Dados: y = 2x + 1 (com ruído)
+torch.manual_seed(42)
+X = torch.linspace(0, 10, 20)
+y_true = 2 * X + 1 + torch.randn(20) * 0.5
+
+# Parâmetros a aprender
+w = torch.tensor([0.0], requires_grad=True)  # peso
+b = torch.tensor([0.0], requires_grad=True)  # bias
+
+# Learning rate
+lr = 0.01
+
+print("Antes do treino:")
+print(f"  w = {w.item():.4f}, b = {b.item():.4f}")
+
+# Mini treinamento
+for epoch in range(100):
+    # Forward: predição
+    y_pred = w * X + b
+
+    # Perda (MSE)
+    loss = ((y_pred - y_true) ** 2).mean()
+
+    # Backward: calcular gradientes
+    loss.backward()
+
+    # Atualizar parâmetros (sem rastrear gradientes!)
+    with torch.no_grad():
+        w -= lr * w.grad
+        b -= lr * b.grad
+
+    # Zerar gradientes
+    w.grad.zero_()
+    b.grad.zero_()
+
+print("\nApós treino:")
+print(f"  w = {w.item():.4f} (esperado: 2.0)")
+print(f"  b = {b.item():.4f} (esperado: 1.0)")
+print(f"  loss = {loss.item():.4f}")
+</CodeCell>
+
+## Exercícios
+
+<Exercise id="ex-simple-grad" difficulty="easy">
+Crie um tensor `x = torch.tensor([3.0], requires_grad=True)`, calcule `y = x³` (x ao cubo), e obtenha o gradiente. A derivada de x³ é 3x². Armazene o gradiente em `gradient`.
+</Exercise>
+
+<Exercise id="ex-chain" difficulty="medium">
+Calcule os gradientes de uma função composta. Dado `x = torch.tensor([2.0], requires_grad=True)`, calcule:
+- `y = x² + 3x`
+- Faça backward e armazene dy/dx em `grad_y`
+A derivada deveria ser 2x + 3 = 2(2) + 3 = 7.
+</Exercise>
+
+<Exercise id="ex-no-accumulate" difficulty="medium">
+Demonstre que você sabe evitar acumulação de gradientes. Execute duas operações consecutivas e mostre que os gradientes estão corretos (não acumulados). Armazene o gradiente correto da segunda operação em `correct_grad`.
+</Exercise>
+
+## Resumo
+
+Neste módulo você aprendeu:
+- `requires_grad=True` habilita o rastreamento de gradientes
+- `.backward()` calcula os gradientes automaticamente
+- Gradientes acumulam - use `.grad.zero_()` para limpar
+- `grad_fn` mostra qual operação criou o tensor
+- `torch.no_grad()` desabilita gradientes para inferência
+- O autograd é a base do treinamento de redes neurais
+
+No próximo módulo, vamos explorar o grafo computacional em mais detalhes!

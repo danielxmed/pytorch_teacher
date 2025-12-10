@@ -1,0 +1,181 @@
+---
+title: "Attention e Transformers"
+order: 18
+prerequisites: ["17-rnns-lstm"]
+estimatedMinutes: 60
+pytorchVersion: "2.2"
+---
+
+# Attention e Transformers
+
+O mecanismo de attention revolucionou deep learning, permitindo modelos como BERT e GPT.
+
+## Scaled Dot-Product Attention
+
+<CodeCell id="attention-basic">
+import torch
+import torch.nn.functional as F
+
+def scaled_dot_product_attention(query, key, value, mask=None):
+    """
+    Args:
+        query: (batch, seq_q, d_k)
+        key: (batch, seq_k, d_k)
+        value: (batch, seq_k, d_v)
+    Returns:
+        output: (batch, seq_q, d_v)
+        attention_weights: (batch, seq_q, seq_k)
+    """
+    d_k = query.size(-1)
+    # Scores: Q @ K^T / sqrt(d_k)
+    scores = torch.matmul(query, key.transpose(-2, -1)) / (d_k ** 0.5)
+
+    if mask is not None:
+        scores = scores.masked_fill(mask == 0, -1e9)
+
+    # Softmax para probabilidades
+    attention_weights = F.softmax(scores, dim=-1)
+
+    # Output: attention @ V
+    output = torch.matmul(attention_weights, value)
+
+    return output, attention_weights
+
+# Exemplo
+batch, seq, d_k = 2, 5, 8
+Q = torch.randn(batch, seq, d_k)
+K = torch.randn(batch, seq, d_k)
+V = torch.randn(batch, seq, d_k)
+
+output, weights = scaled_dot_product_attention(Q, K, V)
+print(f"Output: {output.shape}")
+print(f"Attention weights: {weights.shape}")
+</CodeCell>
+
+## Multi-Head Attention
+
+<CodeCell id="multihead-attention">
+import torch.nn as nn
+
+# PyTorch built-in
+mha = nn.MultiheadAttention(
+    embed_dim=512,
+    num_heads=8,
+    dropout=0.1,
+    batch_first=True
+)
+
+x = torch.randn(32, 100, 512)  # (batch, seq, embed)
+output, weights = mha(x, x, x)  # Self-attention: Q=K=V
+
+print(f"Input: {x.shape}")
+print(f"Output: {output.shape}")
+print(f"Attention weights: {weights.shape}")
+</CodeCell>
+
+<DocRef symbol="torch.nn.MultiheadAttention" />
+
+## Positional Encoding
+
+<CodeCell id="positional-encoding">
+import torch
+import math
+
+class PositionalEncoding(nn.Module):
+    def __init__(self, d_model, max_len=5000):
+        super().__init__()
+        pe = torch.zeros(max_len, d_model)
+        position = torch.arange(0, max_len).unsqueeze(1).float()
+        div_term = torch.exp(torch.arange(0, d_model, 2).float() *
+                           (-math.log(10000.0) / d_model))
+
+        pe[:, 0::2] = torch.sin(position * div_term)
+        pe[:, 1::2] = torch.cos(position * div_term)
+        pe = pe.unsqueeze(0)  # (1, max_len, d_model)
+
+        self.register_buffer('pe', pe)
+
+    def forward(self, x):
+        # x: (batch, seq, d_model)
+        return x + self.pe[:, :x.size(1)]
+
+pe = PositionalEncoding(d_model=512)
+x = torch.randn(8, 100, 512)
+out = pe(x)
+print(f"Com positional encoding: {out.shape}")
+</CodeCell>
+
+## Transformer Encoder Layer
+
+<CodeCell id="transformer-encoder">
+import torch.nn as nn
+
+# Uma camada do encoder
+encoder_layer = nn.TransformerEncoderLayer(
+    d_model=512,
+    nhead=8,
+    dim_feedforward=2048,
+    dropout=0.1,
+    batch_first=True
+)
+
+# Encoder completo (empilha N camadas)
+encoder = nn.TransformerEncoder(encoder_layer, num_layers=6)
+
+x = torch.randn(32, 100, 512)
+output = encoder(x)
+print(f"Encoder output: {output.shape}")
+</CodeCell>
+
+## Transformer Completo (simplificado)
+
+<CodeCell id="simple-transformer">
+import torch.nn as nn
+
+class SimpleTransformer(nn.Module):
+    def __init__(self, vocab_size, d_model=256, nhead=4, num_layers=2, num_classes=10):
+        super().__init__()
+        self.embedding = nn.Embedding(vocab_size, d_model)
+        self.pos_encoder = PositionalEncoding(d_model)
+
+        encoder_layer = nn.TransformerEncoderLayer(
+            d_model=d_model,
+            nhead=nhead,
+            dim_feedforward=d_model*4,
+            batch_first=True
+        )
+        self.transformer = nn.TransformerEncoder(encoder_layer, num_layers)
+        self.fc = nn.Linear(d_model, num_classes)
+
+    def forward(self, x):
+        # x: (batch, seq) - token indices
+        x = self.embedding(x)
+        x = self.pos_encoder(x)
+        x = self.transformer(x)
+        # Usar [CLS] token ou mean pooling
+        x = x.mean(dim=1)  # Global average pooling
+        return self.fc(x)
+
+model = SimpleTransformer(vocab_size=10000, num_classes=5)
+x = torch.randint(0, 10000, (8, 64))
+out = model(x)
+print(f"Classification output: {out.shape}")
+</CodeCell>
+
+<Callout type="important">
+Transformers são a base de modelos como BERT, GPT, ViT. O mecanismo de attention permite capturar dependências de longo alcance sem recorrência.
+</Callout>
+
+## Exercícios
+
+<Exercise id="ex-attention-weights" difficulty="medium">
+Calcule attention weights para Q=K=V sendo um tensor 1x4x8. Verifique que cada linha soma 1.
+</Exercise>
+
+## Resumo
+
+- Attention: Q @ K^T / sqrt(d) -> softmax -> @ V
+- Multi-head: Múltiplas "perspectivas" de attention
+- Positional encoding: Injeta informação de posição
+- Transformer = Multi-head attention + FFN + residual connections
+- Base para modelos modernos de NLP e visão

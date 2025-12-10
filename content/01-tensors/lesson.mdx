@@ -1,0 +1,205 @@
+---
+title: "Tensores: A Fundação do PyTorch"
+order: 1
+prerequisites: []
+estimatedMinutes: 45
+pytorchVersion: "2.2"
+---
+
+# Tensores: A Fundação do PyTorch
+
+Tensores são a estrutura de dados fundamental do PyTorch. Se você já conhece NumPy, vai se sentir em casa — tensores são muito similares a arrays NumPy, mas com superpoderes: eles podem rodar em GPUs e suportam diferenciação automática.
+
+## O que é um Tensor?
+
+Um tensor é uma generalização de vetores e matrizes para dimensões arbitrárias:
+- **0D tensor** (escalar): um único número
+- **1D tensor** (vetor): uma sequência de números
+- **2D tensor** (matriz): uma tabela de números
+- **3D+ tensor**: estruturas multidimensionais
+
+<Callout type="info">
+Em deep learning, tensores são usados para representar tudo: dados de entrada, pesos das redes neurais, gradientes, e outputs.
+</Callout>
+
+## Criando Tensores
+
+Vamos começar criando tensores simples:
+
+<CodeCell id="create-tensor">
+import torch
+
+# Criando um tensor a partir de uma lista Python
+x = torch.tensor([1, 2, 3, 4])
+print("Tensor:", x)
+print("Shape:", x.shape)
+print("Dtype:", x.dtype)
+</CodeCell>
+
+O PyTorch infere automaticamente o tipo de dados (dtype) baseado nos valores que você passa. Vamos ver diferentes formas de criar tensores:
+
+<CodeCell id="create-methods">
+import torch
+
+# Tensor de zeros
+zeros = torch.zeros(3, 4)
+print("Zeros:\n", zeros)
+
+# Tensor de uns
+ones = torch.ones(2, 3)
+print("\nOnes:\n", ones)
+
+# Tensor com valores aleatórios (distribuição uniforme entre 0 e 1)
+rand = torch.rand(2, 2)
+print("\nRandom:\n", rand)
+
+# Tensor com valores de uma distribuição normal
+randn = torch.randn(2, 2)
+print("\nRandom Normal:\n", randn)
+
+# Tensor com uma sequência
+arange = torch.arange(0, 10, 2)
+print("\nArange:", arange)
+</CodeCell>
+
+<DocRef symbol="torch.tensor" />
+
+## Tipos de Dados (dtypes)
+
+PyTorch suporta diversos tipos de dados. Os mais comuns são:
+
+| Dtype | Descrição |
+|-------|-----------|
+| `torch.float32` | Ponto flutuante 32 bits (padrão para operações) |
+| `torch.float64` | Ponto flutuante 64 bits |
+| `torch.int32` | Inteiro 32 bits |
+| `torch.int64` | Inteiro 64 bits (padrão para inteiros) |
+| `torch.bool` | Booleano |
+
+<CodeCell id="dtypes">
+import torch
+
+# Especificando o dtype explicitamente
+x_float = torch.tensor([1, 2, 3], dtype=torch.float32)
+print("Float tensor:", x_float, "- dtype:", x_float.dtype)
+
+x_int = torch.tensor([1, 2, 3], dtype=torch.int64)
+print("Int tensor:", x_int, "- dtype:", x_int.dtype)
+
+# Convertendo entre tipos
+x_converted = x_int.float()
+print("Converted:", x_converted, "- dtype:", x_converted.dtype)
+</CodeCell>
+
+<Callout type="warning">
+Redes neurais geralmente usam `float32`. Usar `float64` dobra o uso de memória e é raramente necessário.
+</Callout>
+
+## Shape e Dimensões
+
+O **shape** de um tensor descreve seu tamanho em cada dimensão:
+
+<CodeCell id="shape-dims">
+import torch
+
+# Tensor 1D
+t1d = torch.tensor([1, 2, 3, 4, 5])
+print("1D tensor shape:", t1d.shape)
+print("Número de dimensões:", t1d.ndim)
+
+# Tensor 2D
+t2d = torch.tensor([[1, 2, 3], [4, 5, 6]])
+print("\n2D tensor shape:", t2d.shape)
+print("Número de dimensões:", t2d.ndim)
+
+# Tensor 3D
+t3d = torch.rand(2, 3, 4)
+print("\n3D tensor shape:", t3d.shape)
+print("Número de dimensões:", t3d.ndim)
+print("Número total de elementos:", t3d.numel())
+</CodeCell>
+
+## Device: CPU vs GPU
+
+Tensores podem viver na CPU ou na GPU. GPUs permitem paralelismo massivo, acelerando operações com tensores grandes.
+
+<CodeCell id="device">
+import torch
+
+# Por padrão, tensores são criados na CPU
+x = torch.tensor([1, 2, 3])
+print("Device:", x.device)
+
+# Verificando se GPU está disponível
+print("CUDA disponível:", torch.cuda.is_available())
+
+# Criando tensor diretamente em um device
+cpu_tensor = torch.tensor([1, 2, 3], device='cpu')
+print("CPU tensor device:", cpu_tensor.device)
+
+# Se tivéssemos GPU:
+# gpu_tensor = torch.tensor([1, 2, 3], device='cuda')
+# ou
+# gpu_tensor = cpu_tensor.to('cuda')
+</CodeCell>
+
+<Callout type="tip">
+No Pyodide (navegador), não temos acesso a GPUs. Em um ambiente real com CUDA, você pode mover tensores para GPU com `.to('cuda')` ou `.cuda()`.
+</Callout>
+
+## Acessando Elementos
+
+Tensores suportam indexação similar a listas Python e arrays NumPy:
+
+<CodeCell id="indexing-basic">
+import torch
+
+t = torch.tensor([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
+print("Tensor:\n", t)
+
+# Acessando elemento específico
+print("\nElemento [0, 0]:", t[0, 0])
+print("Elemento [1, 2]:", t[1, 2])
+
+# Acessando linha inteira
+print("\nPrimeira linha:", t[0])
+print("Última linha:", t[-1])
+
+# Acessando coluna inteira
+print("\nPrimeira coluna:", t[:, 0])
+print("Última coluna:", t[:, -1])
+</CodeCell>
+
+## Exercícios
+
+Agora é sua vez de praticar! Complete os exercícios abaixo.
+
+<Exercise id="ex-2d-tensor" difficulty="easy">
+Crie um tensor 2D com shape (3, 4) preenchido com zeros e armazene na variável `x`.
+</Exercise>
+
+<Exercise id="ex-random-tensor" difficulty="easy">
+Crie um tensor com valores aleatórios de uma distribuição normal, com shape (5, 5), e armazene na variável `random_tensor`.
+</Exercise>
+
+<Exercise id="ex-dtype-conversion" difficulty="medium">
+Crie um tensor de inteiros `[1, 2, 3, 4, 5]` e converta para float32. Armazene o resultado em `float_tensor`.
+</Exercise>
+
+<Exercise id="ex-tensor-info" difficulty="medium">
+Dado o tensor já criado `t = torch.rand(2, 3, 4)`, extraia:
+- O número de dimensões em `num_dims`
+- O número total de elementos em `num_elements`
+- O dtype em `tensor_dtype`
+</Exercise>
+
+## Resumo
+
+Neste módulo você aprendeu:
+- Tensores são arrays multidimensionais, a estrutura de dados fundamental do PyTorch
+- Existem várias formas de criar tensores: `torch.tensor()`, `torch.zeros()`, `torch.ones()`, `torch.rand()`, etc.
+- Tensores têm atributos importantes: `shape`, `dtype`, `device`
+- Tensores podem ser movidos entre CPU e GPU
+- A indexação de tensores funciona similar a NumPy
+
+No próximo módulo, vamos explorar operações com tensores!

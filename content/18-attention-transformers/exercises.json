@@ -1,0 +1,18 @@
+{
+  "ex-attention-weights": {
+    "starterCode": "import torch\nimport torch.nn.functional as F\n\n# Q = K = V (self-attention)\nx = torch.randn(1, 4, 8)\nQ, K, V = x, x, x\n\n# Calcule scaled dot-product attention weights\nd_k = Q.size(-1)\nscores = torch.matmul(Q, K.transpose(-2, -1)) / (d_k ** 0.5)\nattention_weights = F.softmax(scores, dim=-1)\n\nprint(f'Attention weights shape: {attention_weights.shape}')\nprint(f'Soma de cada linha: {attention_weights.sum(dim=-1)}')\n\n# Verifique que cada linha soma 1\nrow_sums = ",
+    "hints": [
+      "attention_weights.sum(dim=-1) dá a soma de cada linha",
+      "Deve ser aproximadamente tensor([[1., 1., 1., 1.]])"
+    ],
+    "validation": {
+      "type": "assert",
+      "tests": [
+        "assert attention_weights.shape == torch.Size([1, 4, 4]), f'Shape incorreto: {attention_weights.shape}'",
+        "sums = attention_weights.sum(dim=-1)",
+        "assert torch.allclose(sums, torch.ones_like(sums), atol=1e-5), 'Cada linha deveria somar 1'"
+      ]
+    },
+    "solution": "row_sums = attention_weights.sum(dim=-1)"
+  }
+}

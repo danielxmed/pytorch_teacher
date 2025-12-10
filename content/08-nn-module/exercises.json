@@ -1,0 +1,36 @@
+{
+  "ex-custom-module": {
+    "starterCode": "import torch\nimport torch.nn as nn\n\nclass MyNet(nn.Module):\n    def __init__(self):\n        super().__init__()\n        # Defina as camadas: 10 -> 20 -> 5\n        \n    \n    def forward(self, x):\n        # Defina o forward pass com ReLU entre as camadas\n        \n        return x\n\n# Crie a instância\nmodel = \n\n# Teste\nx = torch.randn(8, 10)\noutput = model(x)\nprint(f'Output shape: {output.shape}')",
+    "hints": [
+      "Defina self.fc1 = nn.Linear(10, 20) e self.fc2 = nn.Linear(20, 5)",
+      "No forward: x = torch.relu(self.fc1(x)), depois x = self.fc2(x)",
+      "Não esqueça de instanciar: model = MyNet()"
+    ],
+    "validation": {
+      "type": "assert",
+      "tests": [
+        "assert isinstance(model, nn.Module), 'model deve ser nn.Module'",
+        "x_test = torch.randn(4, 10)",
+        "out = model(x_test)",
+        "assert out.shape == torch.Size([4, 5]), f'Output shape incorreto: esperado (4, 5), obtido {tuple(out.shape)}'"
+      ]
+    },
+    "solution": "class MyNet(nn.Module):\n    def __init__(self):\n        super().__init__()\n        self.fc1 = nn.Linear(10, 20)\n        self.fc2 = nn.Linear(20, 5)\n    \n    def forward(self, x):\n        x = torch.relu(self.fc1(x))\n        x = self.fc2(x)\n        return x\n\nmodel = MyNet()"
+  },
+  "ex-count-params": {
+    "starterCode": "import torch.nn as nn\n\nmodel = nn.Linear(100, 50)\n\n# Conte o número total de parâmetros\n# Linear tem weight (100 x 50) e bias (50)\ntotal_params = ",
+    "hints": [
+      "Use sum(p.numel() for p in model.parameters())",
+      "Weight tem shape (50, 100) = 5000 parâmetros",
+      "Bias tem shape (50,) = 50 parâmetros",
+      "Total = 5050"
+    ],
+    "validation": {
+      "type": "assert",
+      "tests": [
+        "assert total_params == 5050, f'Total incorreto: esperado 5050, obtido {total_params}'"
+      ]
+    },
+    "solution": "total_params = sum(p.numel() for p in model.parameters())"
+  }
+}
