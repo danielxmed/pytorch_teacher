@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import get_settings
-from .routers import curriculum_router, validation_router, docs_router
+from .routers import curriculum_router, validation_router, docs_router, execution_router
 
 settings = get_settings()
 
@@ -28,6 +28,7 @@ app.add_middleware(
 app.include_router(curriculum_router)
 app.include_router(validation_router)
 app.include_router(docs_router)
+app.include_router(execution_router)
 
 
 @app.get("/")
@@ -41,6 +42,7 @@ async def root():
             "curriculum": "/api/curriculum",
             "modules": "/api/modules/{module_id}",
             "validate": "/api/validate",
+            "execute": "/api/execute",
             "docs": "/api/docs/pytorch/{symbol}",
         },
     }

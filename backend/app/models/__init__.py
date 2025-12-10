@@ -6,6 +6,7 @@ from .exercise import (
     ValidationRequest,
     ValidationResponse,
     ValidationResult,
+    ValidationType,
 )
 from .execution import CodeExecutionRequest, CodeExecutionResponse
 
@@ -19,6 +20,7 @@ __all__ = [
     "ValidationRequest",
     "ValidationResponse",
     "ValidationResult",
+    "ValidationType",
     "CodeExecutionRequest",
     "CodeExecutionResponse",
 ]
