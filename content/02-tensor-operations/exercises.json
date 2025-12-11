@@ -65,5 +65,41 @@
       ]
     },
     "solution": "clipped = t.clone()\nclipped[clipped < 0] = 0"
+  },
+  "ex-topk-accuracy": {
+    "starterCode": "import torch\n\ntorch.manual_seed(42)\nlogits = torch.randn(5, 4)  # 5 amostras, 4 classes\nlabels = torch.tensor([0, 1, 2, 3, 1])  # classes corretas\n\nprint('Logits (5 amostras, 4 classes):')\nprint(logits)\nprint('\\nLabels:', labels)\n\n# Calcule quantas amostras têm a classe correta entre as top-2 predições\n# Dica: use torch.topk() para pegar os índices das 2 maiores classes por amostra\ntop2_correct = ",
+    "hints": [
+      "Use torch.topk(logits, k=2, dim=1) para pegar os 2 maiores valores por linha",
+      "O segundo retorno de topk são os índices das classes",
+      "Compare se labels está em algum dos índices top-2",
+      "Use (labels.unsqueeze(1) == top2_indices).any(dim=1) para verificar por amostra",
+      "Some os True para contar quantas amostras acertaram"
+    ],
+    "validation": {
+      "type": "assert",
+      "tests": [
+        "assert isinstance(top2_correct, (int, torch.Tensor)), 'top2_correct deve ser um número ou tensor'",
+        "assert 0 <= int(top2_correct) <= 5, 'top2_correct deve estar entre 0 e 5'"
+      ]
+    },
+    "solution": "_, top2_indices = torch.topk(logits, k=2, dim=1)\ncorrect_in_top2 = (labels.unsqueeze(1) == top2_indices).any(dim=1)\ntop2_correct = correct_in_top2.sum().item()"
+  },
+  "ex-normalize-batch": {
+    "starterCode": "import torch\n\ntorch.manual_seed(42)\nbatch = torch.randn(32, 10)  # 32 amostras, 10 features\n\nprint('Shape do batch:', batch.shape)\nprint('Média por feature (antes):', batch.mean(dim=0))\nprint('Std por feature (antes):', batch.std(dim=0))\n\n# Normalize para média 0 e std 1 por feature (coluna)\n# Use broadcasting!\nnormalized = ",
+    "hints": [
+      "Calcule a média por coluna: mean = batch.mean(dim=0)",
+      "Calcule o desvio padrão por coluna: std = batch.std(dim=0)",
+      "Normalize: normalized = (batch - mean) / std",
+      "Broadcasting funciona porque mean e std têm shape (10,) que é compatível com (32, 10)"
+    ],
+    "validation": {
+      "type": "assert",
+      "tests": [
+        "assert normalized.shape == torch.Size([32, 10]), f'Shape incorreto: esperado (32, 10), obtido {tuple(normalized.shape)}'",
+        "assert torch.allclose(normalized.mean(dim=0), torch.zeros(10), atol=1e-5), 'Média por feature deveria ser ≈ 0'",
+        "assert torch.allclose(normalized.std(dim=0), torch.ones(10), atol=0.1), 'Std por feature deveria ser ≈ 1'"
+      ]
+    },
+    "solution": "mean = batch.mean(dim=0)\nstd = batch.std(dim=0)\nnormalized = (batch - mean) / std"
   }
 }

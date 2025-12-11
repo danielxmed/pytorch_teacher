@@ -2,21 +2,45 @@
 title: "Tensores e NumPy"
 order: 4
 prerequisites: ["01-tensors", "02-tensor-operations"]
-estimatedMinutes: 35
+estimatedMinutes: 45
 pytorchVersion: "2.2"
 ---
 
 # Tensores e NumPy
 
-PyTorch foi projetado para interoperar perfeitamente com NumPy. Você pode converter entre tensores e arrays NumPy com facilidade, e muitas operações são idênticas.
+PyTorch foi projetado para interoperar perfeitamente com NumPy, a biblioteca fundamental para computação científica em Python. Essa integração permite que você aproveite o vasto ecossistema de bibliotecas Python enquanto utiliza as capacidades de deep learning do PyTorch.
+
+## Por que Integrar com NumPy?
+
+NumPy é o padrão de facto para arrays numéricos em Python. Praticamente todas as bibliotecas científicas Python trabalham com arrays NumPy:
+
+- **Matplotlib** para visualização de dados
+- **Pandas** para análise de dados tabulares
+- **scikit-learn** para machine learning tradicional
+- **SciPy** para computação científica avançada
+- **OpenCV** para processamento de imagens
+
+Ao integrar com NumPy, PyTorch se conecta automaticamente a todo esse ecossistema. Você pode:
+
+1. **Carregar dados** de fontes diversas (CSVs, imagens, etc.)
+2. **Pré-processar** usando bibliotecas familiares
+3. **Treinar modelos** com PyTorch
+4. **Visualizar resultados** com Matplotlib
+5. **Exportar previsões** para qualquer formato
+
+<Callout type="info" title="Tensores vs Arrays">
+Conceitualmente, tensores PyTorch e arrays NumPy são muito similares - ambos são arrays multidimensionais de dados numéricos. A principal diferença é que tensores podem rodar em GPUs e suportam diferenciação automática (autograd), enquanto arrays NumPy são exclusivamente CPU e não têm suporte nativo a gradientes.
+</Callout>
 
 ## Conversão Básica
+
+Existem duas maneiras principais de converter entre NumPy e PyTorch:
 
 <CodeCell id="basic-conversion">
 import torch
 import numpy as np
 
-# NumPy -> PyTorch
+# NumPy -> PyTorch (compartilha memória)
 np_array = np.array([1, 2, 3, 4, 5])
 tensor_from_np = torch.from_numpy(np_array)
 
@@ -24,7 +48,7 @@ print("NumPy array:", np_array)
 print("Tensor:", tensor_from_np)
 print("Tensor dtype:", tensor_from_np.dtype)
 
-# PyTorch -> NumPy
+# PyTorch -> NumPy (compartilha memória)
 tensor = torch.tensor([10, 20, 30, 40, 50])
 np_from_tensor = tensor.numpy()
 
@@ -33,11 +57,20 @@ print("NumPy array:", np_from_tensor)
 print("NumPy dtype:", np_from_tensor.dtype)
 </CodeCell>
 
+| Método | Direção | Memória |
+|--------|---------|---------|
+| `torch.from_numpy(arr)` | NumPy → PyTorch | Compartilhada |
+| `tensor.numpy()` | PyTorch → NumPy | Compartilhada |
+| `torch.tensor(arr)` | NumPy → PyTorch | Copiada |
+| `torch.as_tensor(arr)` | Qualquer → PyTorch | Compartilhada (se possível) |
+
 <Callout type="warning" title="Memória Compartilhada">
-Quando você usa `torch.from_numpy()` ou `.numpy()`, o tensor e o array **compartilham a mesma memória**! Modificar um afeta o outro.
+Quando você usa `torch.from_numpy()` ou `.numpy()`, o tensor e o array **compartilham a mesma memória**! Modificar um afeta o outro. Isso é eficiente mas pode causar bugs sutis.
 </Callout>
 
-## Memória Compartilhada
+## Memória Compartilhada em Detalhes
+
+Vamos entender exatamente como a memória compartilhada funciona:
 
 <CodeCell id="shared-memory">
 import torch
@@ -46,10 +79,12 @@ import numpy as np
 # Criar array NumPy
 np_array = np.array([1.0, 2.0, 3.0])
 print("NumPy original:", np_array)
+print("Endereço de memória NumPy:", np_array.__array_interface__['data'][0])
 
 # Converter para tensor (compartilha memória)
 tensor = torch.from_numpy(np_array)
-print("Tensor:", tensor)
+print("\nTensor:", tensor)
+print("Endereço de memória do tensor:", tensor.data_ptr())
 
 # Modificar o tensor
 tensor[0] = 999
@@ -64,145 +99,197 @@ print("NumPy:", np_array)
 print("Tensor:", tensor)  # Também foi modificado!
 </CodeCell>
 
-## Evitando Compartilhamento de Memória
+A mesma coisa acontece na direção inversa:
 
-Se você precisa de cópias independentes:
-
-<CodeCell id="copy">
+<CodeCell id="shared-memory-reverse">
 import torch
 import numpy as np
 
-# Opção 1: Usar torch.tensor() em vez de from_numpy()
-np_array = np.array([1.0, 2.0, 3.0])
-tensor_copy = torch.tensor(np_array)  # COPIA os dados
+# Criar tensor PyTorch
+tensor = torch.tensor([10.0, 20.0, 30.0])
+print("Tensor original:", tensor)
 
-tensor_copy[0] = 999
-print("tensor_copy:", tensor_copy)
-print("np_array original:", np_array)  # Não foi afetado!
+# Converter para NumPy (compartilha memória)
+np_array = tensor.numpy()
 
-# Opção 2: Usar .copy() no NumPy
-np_array2 = np.array([4.0, 5.0, 6.0])
-np_copy = np_array2.copy()
-tensor2 = torch.from_numpy(np_copy)
-
-# Opção 3: Usar .clone() no tensor
-tensor3 = torch.tensor([7, 8, 9])
-np_copy2 = tensor3.clone().numpy()
+# Modificar via NumPy
+np_array[2] = 999
+print("\nApós modificar np_array[2] = 999:")
+print("NumPy:", np_array)
+print("Tensor:", tensor)  # Também modificado!
 </CodeCell>
 
-## Correspondência de Tipos
+## Evitando Compartilhamento de Memória
 
-PyTorch e NumPy têm tipos de dados correspondentes:
+Se você precisa de cópias independentes, existem várias abordagens:
 
-| NumPy | PyTorch |
-|-------|---------|
-| `np.float32` | `torch.float32` |
-| `np.float64` | `torch.float64` |
-| `np.int32` | `torch.int32` |
-| `np.int64` | `torch.int64` |
-| `np.bool_` | `torch.bool` |
+<CodeCell id="copy-strategies">
+import torch
+import numpy as np
+
+np_array = np.array([1.0, 2.0, 3.0])
+print("Array original:", np_array)
+
+# Estratégia 1: torch.tensor() - SEMPRE copia
+tensor1 = torch.tensor(np_array)
+tensor1[0] = 999
+print("\n1. torch.tensor() - copia:")
+print(f"   Tensor: {tensor1}")
+print(f"   NumPy: {np_array}")  # Não modificado!
+
+# Estratégia 2: .copy() no NumPy antes de converter
+np_array2 = np.array([4.0, 5.0, 6.0])
+tensor2 = torch.from_numpy(np_array2.copy())
+tensor2[0] = 999
+print("\n2. from_numpy(arr.copy()):")
+print(f"   Tensor: {tensor2}")
+print(f"   NumPy: {np_array2}")  # Não modificado!
+
+# Estratégia 3: .clone() no tensor antes de converter
+tensor3 = torch.tensor([7.0, 8.0, 9.0])
+np_array3 = tensor3.clone().numpy()
+np_array3[0] = 999
+print("\n3. tensor.clone().numpy():")
+print(f"   NumPy: {np_array3}")
+print(f"   Tensor: {tensor3}")  # Não modificado!
+</CodeCell>
+
+<Callout type="tip" title="Quando Usar Cada Método">
+- Use `torch.from_numpy()` quando precisar de eficiência e não vai modificar os dados
+- Use `torch.tensor()` quando precisar de uma cópia segura ou quando os dados não são contíguos
+- Use `.clone()` quando o tensor já existe e você quer uma cópia independente
+</Callout>
+
+## Correspondência de Tipos (dtypes)
+
+PyTorch e NumPy têm tipos de dados correspondentes. A conversão preserva o tipo automaticamente:
 
 <CodeCell id="dtype-mapping">
 import torch
 import numpy as np
 
-# NumPy com tipo específico
-np_float32 = np.array([1, 2, 3], dtype=np.float32)
-tensor_float32 = torch.from_numpy(np_float32)
-print("NumPy float32 ->", tensor_float32.dtype)
+# Tabela de correspondência prática
+dtypes_np = [np.float16, np.float32, np.float64, np.int8, np.int16, np.int32, np.int64, np.bool_]
+dtypes_torch = [torch.float16, torch.float32, torch.float64, torch.int8, torch.int16, torch.int32, torch.int64, torch.bool]
 
-np_int64 = np.array([1, 2, 3], dtype=np.int64)
-tensor_int64 = torch.from_numpy(np_int64)
-print("NumPy int64 ->", tensor_int64.dtype)
-
-# PyTorch para NumPy preserva o tipo
-torch_float = torch.tensor([1.0, 2.0], dtype=torch.float32)
-np_from_torch = torch_float.numpy()
-print("\nTorch float32 ->", np_from_torch.dtype)
+print("NumPy dtype -> PyTorch dtype")
+print("-" * 40)
+for np_dtype, torch_dtype in zip(dtypes_np, dtypes_torch):
+    np_arr = np.array([1], dtype=np_dtype)
+    tensor = torch.from_numpy(np_arr)
+    print(f"{str(np_dtype):20} -> {tensor.dtype}")
 </CodeCell>
 
-## Operações Familiares
+| NumPy | PyTorch | Bytes | Uso Típico |
+|-------|---------|-------|------------|
+| `np.float16` | `torch.float16` | 2 | Inferência otimizada |
+| `np.float32` | `torch.float32` | 4 | Padrão para deep learning |
+| `np.float64` | `torch.float64` | 8 | Alta precisão numérica |
+| `np.int32` | `torch.int32` | 4 | Índices (32-bit) |
+| `np.int64` | `torch.int64` | 8 | Índices (64-bit, padrão) |
+| `np.bool_` | `torch.bool` | 1 | Máscaras booleanas |
 
-Muitas operações têm nomes idênticos ou muito similares:
+<CodeCell id="dtype-conversion">
+import torch
+import numpy as np
+
+# Conversão explícita de tipo durante transferência
+np_float64 = np.array([1.0, 2.0, 3.0], dtype=np.float64)
+print("NumPy float64:", np_float64.dtype)
+
+# Converter para float32 no PyTorch (mais comum em deep learning)
+tensor_float32 = torch.tensor(np_float64, dtype=torch.float32)
+print("Tensor float32:", tensor_float32.dtype)
+
+# Ou converter após a criação
+tensor_from_np = torch.from_numpy(np_float64).float()  # .float() = float32
+print("Tensor convertido:", tensor_from_np.dtype)
+</CodeCell>
+
+## Operações Similares
+
+Muitas operações têm nomes idênticos ou muito similares entre NumPy e PyTorch. Isso facilita a transição:
 
 <CodeCell id="similar-ops">
 import torch
 import numpy as np
 
-# Comparação de operações comuns
-np_arr = np.array([[1, 2], [3, 4]])
-torch_t = torch.tensor([[1, 2], [3, 4]])
+# Criar dados equivalentes
+np_arr = np.array([[1, 2, 3], [4, 5, 6]], dtype=np.float32)
+torch_t = torch.tensor([[1, 2, 3], [4, 5, 6]], dtype=torch.float32)
 
-print("NumPy vs PyTorch")
-print("-" * 30)
+print("Shape: NumPy={}, PyTorch={}".format(np_arr.shape, torch_t.shape))
+print()
 
-# Soma
-print(f"sum: np={np_arr.sum()}, torch={torch_t.sum()}")
-
-# Mean (precisa ser float em PyTorch)
-print(f"mean: np={np_arr.mean()}, torch={torch_t.float().mean()}")
-
-# Max
-print(f"max: np={np_arr.max()}, torch={torch_t.max()}")
-
-# Reshape
-print(f"reshape: np={np_arr.reshape(-1).shape}, torch={torch_t.reshape(-1).shape}")
-
-# Transpose
-print(f"T: np shape={np_arr.T.shape}, torch shape={torch_t.T.shape}")
+# Operações de agregação
+print("Agregações:")
+print(f"  sum:  NumPy={np_arr.sum():.1f}, PyTorch={torch_t.sum():.1f}")
+print(f"  mean: NumPy={np_arr.mean():.1f}, PyTorch={torch_t.mean():.1f}")
+print(f"  max:  NumPy={np_arr.max():.1f}, PyTorch={torch_t.max():.1f}")
+print(f"  min:  NumPy={np_arr.min():.1f}, PyTorch={torch_t.min():.1f}")
+print(f"  std:  NumPy={np_arr.std():.2f}, PyTorch={torch_t.std():.2f}")
 </CodeCell>
 
-## Limitações com GPU
+### Tabela de Equivalência
 
-<Callout type="important">
-Tensores em GPU não podem ser convertidos diretamente para NumPy. Você precisa primeiro mover para CPU.
+| Operação | NumPy | PyTorch |
+|----------|-------|---------|
+| Soma total | `arr.sum()` | `tensor.sum()` |
+| Soma por eixo | `arr.sum(axis=0)` | `tensor.sum(dim=0)` |
+| Média | `arr.mean()` | `tensor.mean()` |
+| Desvio padrão | `arr.std()` | `tensor.std()` |
+| Máximo | `arr.max()` | `tensor.max()` |
+| Índice do máximo | `arr.argmax()` | `tensor.argmax()` |
+| Reshape | `arr.reshape(2, 3)` | `tensor.reshape(2, 3)` |
+| Transposta | `arr.T` | `tensor.T` |
+| Concatenar | `np.concatenate([a, b])` | `torch.cat([a, b])` |
+| Empilhar | `np.stack([a, b])` | `torch.stack([a, b])` |
+| Zeros | `np.zeros((2, 3))` | `torch.zeros(2, 3)` |
+| Uns | `np.ones((2, 3))` | `torch.ones(2, 3)` |
+| Aleatório | `np.random.randn(2, 3)` | `torch.randn(2, 3)` |
+
+<Callout type="info" title="axis vs dim">
+NumPy usa `axis` enquanto PyTorch usa `dim` para especificar a dimensão das operações. O conceito é idêntico, apenas o nome do parâmetro muda.
 </Callout>
 
-<CodeCell id="gpu-numpy">
-import torch
+## Diferenças Sutis
 
-# Criar tensor (em CPU por padrão)
-tensor_cpu = torch.tensor([1, 2, 3])
-print("Device:", tensor_cpu.device)
+Embora muito similares, existem algumas diferenças importantes:
 
-# Converter para numpy (funciona)
-np_array = tensor_cpu.numpy()
-print("NumPy:", np_array)
-
-# Se tivéssemos GPU:
-# tensor_gpu = tensor_cpu.cuda()  # Move para GPU
-# tensor_gpu.numpy()  # ERRO!
-# tensor_gpu.cpu().numpy()  # Funciona - primeiro move para CPU
-</CodeCell>
-
-## Trabalhando com Bibliotecas NumPy
-
-Muitas bibliotecas científicas Python trabalham com NumPy. Você pode facilmente usar PyTorch com elas:
-
-<CodeCell id="numpy-ecosystem">
+<CodeCell id="differences">
 import torch
 import numpy as np
 
-# Criar dados com PyTorch
-torch.manual_seed(42)
-tensor_data = torch.randn(100)
+# 1. Comportamento do desvio padrão
+np_arr = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
+torch_t = torch.tensor([1.0, 2.0, 3.0, 4.0, 5.0])
 
-# Converter para NumPy para usar com outras bibliotecas
-np_data = tensor_data.numpy()
+print("Desvio Padrão:")
+print(f"  NumPy (ddof=0):  {np_arr.std():.4f}")  # Usa N no denominador
+print(f"  NumPy (ddof=1):  {np_arr.std(ddof=1):.4f}")  # Usa N-1 (sample std)
+print(f"  PyTorch:         {torch_t.std():.4f}")  # Usa N-1 por padrão!
 
-# Calcular estatísticas (NumPy é mais completo para estatísticas)
-print("Percentil 25:", np.percentile(np_data, 25))
-print("Percentil 75:", np.percentile(np_data, 75))
-print("Mediana:", np.median(np_data))
+# 2. Tipos inteiros padrão
+np_int = np.array([1, 2, 3])
+torch_int = torch.tensor([1, 2, 3])
+print(f"\nTipo inteiro padrão:")
+print(f"  NumPy: {np_int.dtype}")  # int64 em maioria dos sistemas
+print(f"  PyTorch: {torch_int.dtype}")  # int64
 
-# Converter resultado de volta para PyTorch se necessário
-median_tensor = torch.tensor(np.median(np_data))
-print("\nMediana como tensor:", median_tensor)
+# 3. Operações in-place com arrays de view
+np_view = np_arr[::2]  # View dos elementos em posições pares
+torch_view = torch_t[::2]
+print(f"\nÉ uma view?")
+print(f"  NumPy view compartilha memória: {np.shares_memory(np_arr, np_view)}")
 </CodeCell>
 
-## torch.as_tensor()
+<Callout type="warning" title="std() com ddof">
+Por padrão, NumPy usa o divisor N (ddof=0, desvio padrão populacional), enquanto PyTorch usa N-1 (correction=1, desvio padrão amostral). Use `np.std(arr, ddof=1)` ou `tensor.std(correction=0)` para obter resultados idênticos.
+</Callout>
 
-Uma alternativa para `from_numpy()` que é mais flexível:
+## torch.as_tensor() - A Função Flexível
+
+`torch.as_tensor()` é uma alternativa mais flexível que aceita diversos tipos de entrada:
 
 <CodeCell id="as-tensor">
 import torch
@@ -210,22 +297,230 @@ import numpy as np
 
 # as_tensor aceita vários tipos de entrada
 list_data = [1, 2, 3]
-np_data = np.array([4, 5, 6])
-tuple_data = (7, 8, 9)
+tuple_data = (4, 5, 6)
+np_data = np.array([7, 8, 9])
+nested_list = [[1, 2], [3, 4]]
 
-t1 = torch.as_tensor(list_data)
-t2 = torch.as_tensor(np_data)
-t3 = torch.as_tensor(tuple_data)
+print("torch.as_tensor() aceita:")
+print(f"  Lista:        {torch.as_tensor(list_data)}")
+print(f"  Tupla:        {torch.as_tensor(tuple_data)}")
+print(f"  NumPy:        {torch.as_tensor(np_data)}")
+print(f"  Lista aninhada: {torch.as_tensor(nested_list)}")
 
-print("De lista:", t1)
-print("De numpy:", t2)
-print("De tupla:", t3)
-
-# as_tensor também compartilha memória com NumPy
+# Comportamento de memória
+print("\nComportamento de memória:")
 np_arr = np.array([1.0, 2.0, 3.0])
-tensor = torch.as_tensor(np_arr)
-tensor[0] = 100
-print("\nMemória compartilhada:", np_arr[0])  # 100.0
+t_as = torch.as_tensor(np_arr)
+t_tensor = torch.tensor(np_arr)
+
+t_as[0] = 999
+print(f"  as_tensor modifica original: {np_arr[0] == 999}")  # True!
+
+np_arr2 = np.array([1.0, 2.0, 3.0])
+t_tensor = torch.tensor(np_arr2)
+t_tensor[0] = 999
+print(f"  tensor modifica original: {np_arr2[0] == 999}")  # False!
+</CodeCell>
+
+### Quando Usar Cada Função
+
+| Função | Memória | Uso Recomendado |
+|--------|---------|-----------------|
+| `torch.tensor()` | Sempre copia | Quando precisa de independência ou dados de lista/tupla |
+| `torch.from_numpy()` | Compartilha | Quando sabe que os dados vêm de NumPy e quer eficiência |
+| `torch.as_tensor()` | Compartilha (se possível) | Código genérico que pode receber diferentes tipos |
+
+## Limitações com GPU
+
+<Callout type="important" title="GPU e NumPy">
+Tensores em GPU não podem ser convertidos diretamente para NumPy. NumPy não tem suporte a GPU - você precisa primeiro mover os dados para CPU.
+</Callout>
+
+<CodeCell id="gpu-numpy">
+import torch
+
+# Criar tensor em CPU
+tensor_cpu = torch.tensor([1.0, 2.0, 3.0])
+print("Device:", tensor_cpu.device)
+
+# Converter para NumPy - funciona normalmente
+np_array = tensor_cpu.numpy()
+print("NumPy array:", np_array)
+
+# Verificar se CUDA está disponível
+if torch.cuda.is_available():
+    # Mover para GPU
+    tensor_gpu = tensor_cpu.cuda()
+    print("\nDevice:", tensor_gpu.device)
+
+    # tensor_gpu.numpy()  # ERRO! RuntimeError
+
+    # Solução: primeiro mover para CPU
+    np_from_gpu = tensor_gpu.cpu().numpy()
+    print("NumPy (via CPU):", np_from_gpu)
+else:
+    print("\nCUDA não disponível - simulando comportamento:")
+    print("  tensor_gpu.numpy() -> RuntimeError!")
+    print("  tensor_gpu.cpu().numpy() -> Funciona!")
+</CodeCell>
+
+### Padrão Seguro para GPU
+
+<CodeCell id="safe-gpu-pattern">
+import torch
+
+def tensor_to_numpy_safe(tensor):
+    """Converte tensor para NumPy de forma segura, independente do device."""
+    # .detach() remove do grafo computacional (veremos em autograd)
+    # .cpu() move para CPU se necessário
+    # .numpy() converte para NumPy
+    return tensor.detach().cpu().numpy()
+
+# Funciona em qualquer situação
+tensor = torch.tensor([1.0, 2.0, 3.0])
+np_arr = tensor_to_numpy_safe(tensor)
+print("Conversão segura:", np_arr)
+
+# O padrão completo é:
+# result = model(input)  # Pode estar na GPU
+# np_result = result.detach().cpu().numpy()  # Sempre funciona
+</CodeCell>
+
+## Integração com Ecossistema Python
+
+Veja como PyTorch se integra com bibliotecas populares do ecossistema Python:
+
+<CodeCell id="ecosystem-integration">
+import torch
+import numpy as np
+
+# Criar dados de exemplo com PyTorch
+torch.manual_seed(42)
+predictions = torch.randn(1000)
+targets = predictions + torch.randn(1000) * 0.5
+
+# Converter para NumPy para análise estatística
+pred_np = predictions.numpy()
+targ_np = targets.numpy()
+
+# Calcular métricas usando NumPy
+mse = np.mean((pred_np - targ_np) ** 2)
+mae = np.mean(np.abs(pred_np - targ_np))
+correlation = np.corrcoef(pred_np, targ_np)[0, 1]
+
+print("Métricas (calculadas com NumPy):")
+print(f"  MSE: {mse:.4f}")
+print(f"  MAE: {mae:.4f}")
+print(f"  Correlação: {correlation:.4f}")
+
+# Estatísticas avançadas que NumPy fornece
+percentiles = np.percentile(pred_np, [25, 50, 75])
+print(f"\nPercentis: Q1={percentiles[0]:.2f}, Mediana={percentiles[1]:.2f}, Q3={percentiles[2]:.2f}")
+</CodeCell>
+
+### Exemplo com scikit-learn
+
+<CodeCell id="sklearn-integration">
+import torch
+import numpy as np
+
+# Simular features de um modelo PyTorch
+torch.manual_seed(42)
+features_torch = torch.randn(100, 5)  # 100 amostras, 5 features
+labels_torch = (features_torch[:, 0] > 0).long()  # Classificação binária simples
+
+# Converter para NumPy para usar com sklearn
+X = features_torch.numpy()
+y = labels_torch.numpy()
+
+print("Dados preparados para scikit-learn:")
+print(f"  X shape: {X.shape}")
+print(f"  y shape: {y.shape}")
+print(f"  Classes: {np.unique(y)}")
+
+# Agora você pode usar:
+# from sklearn.model_selection import train_test_split
+# X_train, X_test, y_train, y_test = train_test_split(X, y)
+#
+# from sklearn.linear_model import LogisticRegression
+# model = LogisticRegression()
+# model.fit(X_train, y_train)
+</CodeCell>
+
+## Performance: NumPy vs PyTorch
+
+Quando usar cada um?
+
+<CodeCell id="performance-comparison">
+import torch
+import numpy as np
+import time
+
+# Criar dados grandes
+n = 1000000
+
+# NumPy
+np_arr = np.random.randn(n).astype(np.float32)
+
+# PyTorch (CPU)
+torch_t = torch.randn(n)
+
+# Operação simples: soma
+start = time.time()
+for _ in range(100):
+    np_sum = np_arr.sum()
+np_time = time.time() - start
+
+start = time.time()
+for _ in range(100):
+    torch_sum = torch_t.sum()
+torch_time = time.time() - start
+
+print(f"Soma de {n:,} elementos (100x):")
+print(f"  NumPy: {np_time*1000:.1f} ms")
+print(f"  PyTorch CPU: {torch_time*1000:.1f} ms")
+
+# Para operações vetorizadas simples, ambos são similares
+# PyTorch brilha com:
+# 1. Operações em GPU
+# 2. Gradientes automáticos
+# 3. Operações de deep learning
+</CodeCell>
+
+<Callout type="tip" title="Regra Geral">
+- Use **NumPy** para: análise exploratória, estatísticas, integração com outras bibliotecas
+- Use **PyTorch** para: treinamento de modelos, operações em GPU, quando precisa de gradientes
+- A conversão entre eles é barata (quando compartilha memória) - não hesite em usar ambos!
+</Callout>
+
+## Debugging com NumPy
+
+NumPy pode ser útil para debugar tensores PyTorch:
+
+<CodeCell id="debugging">
+import torch
+import numpy as np
+
+# Tensor com problema (NaN, Inf)
+torch.manual_seed(42)
+tensor = torch.randn(5, 5)
+tensor[2, 2] = float('nan')
+tensor[4, 4] = float('inf')
+
+# Converter para NumPy para diagnóstico
+arr = tensor.numpy()
+
+print("Diagnóstico com NumPy:")
+print(f"  Tem NaN: {np.isnan(arr).any()}")
+print(f"  Quantos NaN: {np.isnan(arr).sum()}")
+print(f"  Posição dos NaN: {np.argwhere(np.isnan(arr))}")
+print(f"  Tem Inf: {np.isinf(arr).any()}")
+print(f"  Posição dos Inf: {np.argwhere(np.isinf(arr))}")
+
+# PyTorch também tem essas funções
+print("\nDiagnóstico com PyTorch:")
+print(f"  Tem NaN: {torch.isnan(tensor).any()}")
+print(f"  Tem Inf: {torch.isinf(tensor).any()}")
 </CodeCell>
 
 ## Exercícios
@@ -235,25 +530,37 @@ Converta o array NumPy `np_arr = np.array([[1, 2, 3], [4, 5, 6]])` para um tenso
 </Exercise>
 
 <Exercise id="ex-roundtrip" difficulty="medium">
-Faça uma "viagem de ida e volta": crie um tensor PyTorch, calcule algo, converta para NumPy, faça mais cálculos, e volte para PyTorch. Dado `t = torch.arange(10, dtype=torch.float32)`:
-1. Calcule a média usando PyTorch
-2. Converta para NumPy
-3. Calcule o desvio padrão usando NumPy
-4. Armazene o resultado final como tensor em `std_tensor`
+Faça uma "viagem de ida e volta": dado `t = torch.arange(10, dtype=torch.float32)`:
+1. Converta para NumPy
+2. Calcule o desvio padrão usando NumPy
+3. Armazene o resultado final como tensor em `std_tensor`
 </Exercise>
 
 <Exercise id="ex-safe-modify" difficulty="medium">
 Dado um array NumPy `source = np.array([1.0, 2.0, 3.0, 4.0, 5.0])`, crie um tensor PyTorch e multiplique todos os valores por 2, **sem modificar o array original**. O array `source` deve permanecer inalterado. Armazene o resultado em `doubled`.
 </Exercise>
 
+<Exercise id="ex-statistics" difficulty="medium">
+Dado um tensor de scores de um modelo `scores = torch.randn(1000)`, converta para NumPy e calcule os percentis 10, 50 e 90. Retorne como um tensor PyTorch chamado `percentiles` com shape (3,).
+</Exercise>
+
+<Exercise id="ex-safe-gpu" difficulty="hard">
+Implemente uma função `safe_to_numpy(tensor)` que converte qualquer tensor (CPU ou GPU, com ou sem gradientes) para NumPy de forma segura. Use o padrão `.detach().cpu().numpy()`.
+</Exercise>
+
 ## Resumo
 
 Neste módulo você aprendeu:
-- `torch.from_numpy()` e `.numpy()` para conversão
-- Tensores e arrays podem compartilhar memória
-- Use `torch.tensor()` ou `.clone()` para cópias independentes
-- Correspondência entre dtypes NumPy e PyTorch
-- Tensores GPU precisam ir para CPU antes de virar NumPy
-- `torch.as_tensor()` como alternativa flexível
 
-Você completou a Seção 1: Fundamentos! No próximo módulo, vamos mergulhar no autograd - o sistema de diferenciação automática do PyTorch.
+- **Conversão básica**: `torch.from_numpy()` e `.numpy()` compartilham memória
+- **Cópias independentes**: `torch.tensor()` ou `.clone()` para evitar compartilhamento
+- **Correspondência de dtypes**: tipos NumPy mapeiam diretamente para tipos PyTorch
+- **Diferenças sutis**: `axis` vs `dim`, comportamento de `std()`, etc.
+- **Limitações GPU**: tensores GPU precisam ir para CPU antes de virar NumPy
+- **Integração**: como usar PyTorch com Matplotlib, scikit-learn, e outras bibliotecas
+- **Performance**: quando usar cada biblioteca
+- **Debugging**: técnicas para diagnosticar problemas em tensores
+
+<Callout type="success" title="Seção Completa!">
+Parabéns! Você completou a **Seção 1: Fundamentos**! Você agora domina tensores, operações, manipulação de shape e integração com NumPy. No próximo módulo, vamos mergulhar no **autograd** - o sistema de diferenciação automática que torna o PyTorch poderoso para deep learning.
+</Callout>

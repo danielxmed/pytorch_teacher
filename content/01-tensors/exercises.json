@@ -61,5 +61,60 @@
       ]
     },
     "solution": "num_dims = t.ndim\nnum_elements = t.numel()\ntensor_dtype = t.dtype"
+  },
+  "ex-linspace": {
+    "starterCode": "import torch\n\n# Crie um tensor com 11 valores uniformemente espaçados entre 0 e 1\n# Dica: use torch.linspace()\nlinear_space = ",
+    "hints": [
+      "torch.linspace(start, end, steps) cria 'steps' valores uniformemente espaçados",
+      "Para 11 valores entre 0 e 1: torch.linspace(0, 1, 11)",
+      "O intervalo inclui tanto o start quanto o end"
+    ],
+    "validation": {
+      "type": "assert",
+      "tests": [
+        "assert linear_space.shape == torch.Size([11]), f'Shape incorreto: esperado (11,), obtido {tuple(linear_space.shape)}'",
+        "assert abs(linear_space[0].item() - 0.0) < 1e-6, 'O primeiro valor deveria ser 0.0'",
+        "assert abs(linear_space[-1].item() - 1.0) < 1e-6, 'O último valor deveria ser 1.0'",
+        "assert abs(linear_space[5].item() - 0.5) < 1e-6, 'O valor do meio deveria ser 0.5'"
+      ]
+    },
+    "solution": "linear_space = torch.linspace(0, 1, 11)"
+  },
+  "ex-identity-batch": {
+    "starterCode": "import torch\n\n# Crie um batch de 4 matrizes identidade 3x3\n# Shape final: (4, 3, 3)\n# Dica: comece com torch.eye(3), depois adicione dimensão e expanda\nbatch_identity = ",
+    "hints": [
+      "Primeiro crie uma matriz identidade 3x3 com torch.eye(3)",
+      "Use .unsqueeze(0) para adicionar uma dimensão no início: shape (1, 3, 3)",
+      "Use .expand(4, -1, -1) ou .repeat(4, 1, 1) para criar 4 cópias",
+      "expand() não copia memória, repeat() sim"
+    ],
+    "validation": {
+      "type": "assert",
+      "tests": [
+        "assert batch_identity.shape == torch.Size([4, 3, 3]), f'Shape incorreto: esperado (4, 3, 3), obtido {tuple(batch_identity.shape)}'",
+        "assert torch.all(batch_identity[0] == torch.eye(3)), 'Cada elemento do batch deveria ser uma matriz identidade 3x3'",
+        "assert torch.all(batch_identity[1] == torch.eye(3)), 'Cada elemento do batch deveria ser uma matriz identidade 3x3'",
+        "assert torch.all(batch_identity[3] == torch.eye(3)), 'Cada elemento do batch deveria ser uma matriz identidade 3x3'"
+      ]
+    },
+    "solution": "batch_identity = torch.eye(3).unsqueeze(0).expand(4, -1, -1)"
+  },
+  "ex-mask-replace": {
+    "starterCode": "import torch\n\n# Substitua todos os valores negativos por seu valor absoluto\ntorch.manual_seed(42)  # Para reprodutibilidade\nt = torch.randn(4, 4)\nprint(\"Tensor original:\\n\", t)\n\n# Crie all_positive onde negativos são substituídos por seu absoluto\nall_positive = ",
+    "hints": [
+      "Primeiro faça uma cópia do tensor com t.clone()",
+      "Use indexação booleana: tensor[tensor < 0] seleciona elementos negativos",
+      "torch.abs() ou .abs() retorna o valor absoluto",
+      "Alternativa: torch.where(condição, valor_se_true, valor_se_false)"
+    ],
+    "validation": {
+      "type": "assert",
+      "tests": [
+        "assert all_positive.shape == torch.Size([4, 4]), f'Shape incorreto: esperado (4, 4), obtido {tuple(all_positive.shape)}'",
+        "assert torch.all(all_positive >= 0), 'Todos os valores deveriam ser não-negativos'",
+        "assert torch.allclose(all_positive, torch.abs(t)), 'all_positive deveria ser igual a torch.abs(t)'"
+      ]
+    },
+    "solution": "all_positive = torch.abs(t)"
   }
 }

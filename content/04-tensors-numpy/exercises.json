@@ -51,5 +51,43 @@
       ]
     },
     "solution": "doubled = torch.tensor(source) * 2"
+  },
+  "ex-statistics": {
+    "starterCode": "import torch\nimport numpy as np\n\ntorch.manual_seed(42)\nscores = torch.randn(1000)\n\n# Converta para NumPy e calcule percentis 10, 50, 90\n# Retorne como tensor PyTorch\npercentiles = ",
+    "hints": [
+      "Use scores.numpy() para converter para NumPy",
+      "Use np.percentile(array, [10, 50, 90]) para calcular os percentis",
+      "Use torch.tensor() para converter o resultado de volta"
+    ],
+    "validation": {
+      "type": "assert",
+      "tests": [
+        "assert isinstance(percentiles, torch.Tensor), 'Resultado deve ser um tensor PyTorch'",
+        "assert percentiles.shape == torch.Size([3]), f'Shape incorreto: esperado (3,), obtido {tuple(percentiles.shape)}'",
+        "expected = torch.tensor(np.percentile(scores.numpy(), [10, 50, 90]))",
+        "assert torch.allclose(percentiles.float(), expected.float(), atol=1e-4), 'Valores dos percentis incorretos'"
+      ]
+    },
+    "solution": "percentiles = torch.tensor(np.percentile(scores.numpy(), [10, 50, 90]))"
+  },
+  "ex-safe-gpu": {
+    "starterCode": "import torch\nimport numpy as np\n\n# Implemente a função safe_to_numpy\ndef safe_to_numpy(tensor):\n    \"\"\"Converte qualquer tensor para NumPy de forma segura.\"\"\"\n    pass  # Substitua isso\n\n# Teste\nt = torch.tensor([1.0, 2.0, 3.0], requires_grad=True)\nresult = safe_to_numpy(t)\nprint('Resultado:', result)\nprint('Tipo:', type(result))",
+    "hints": [
+      "Use .detach() para remover do grafo de gradientes",
+      "Use .cpu() para mover para CPU (necessário se estiver na GPU)",
+      "Use .numpy() para converter para array NumPy",
+      "A ordem é: tensor.detach().cpu().numpy()"
+    ],
+    "validation": {
+      "type": "assert",
+      "tests": [
+        "import numpy as np",
+        "t_test = torch.tensor([1.0, 2.0, 3.0], requires_grad=True)",
+        "result_test = safe_to_numpy(t_test)",
+        "assert isinstance(result_test, np.ndarray), 'Resultado deve ser um array NumPy'",
+        "assert list(result_test) == [1.0, 2.0, 3.0], 'Valores incorretos'"
+      ]
+    },
+    "solution": "def safe_to_numpy(tensor):\n    return tensor.detach().cpu().numpy()"
   }
 }

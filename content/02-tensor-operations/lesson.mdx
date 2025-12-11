@@ -2,17 +2,17 @@
 title: "Operações com Tensores"
 order: 2
 prerequisites: ["01-tensors"]
-estimatedMinutes: 50
+estimatedMinutes: 65
 pytorchVersion: "2.2"
 ---
 
 # Operações com Tensores
 
-Agora que você sabe criar tensores, vamos aprender a manipulá-los. PyTorch oferece centenas de operações, desde aritmética básica até álgebra linear avançada.
+Agora que você sabe criar tensores, vamos aprender a manipulá-los. PyTorch oferece centenas de operações otimizadas, desde aritmética básica até álgebra linear avançada — todas projetadas para serem rápidas e integradas ao sistema de diferenciação automática.
 
-## Operações Aritméticas
+## Operações Aritméticas Básicas
 
-As operações básicas funcionam elemento a elemento:
+As operações básicas funcionam **elemento a elemento** (element-wise). Isso significa que cada elemento de um tensor é combinado com o elemento correspondente do outro:
 
 <CodeCell id="arithmetic-basic">
 import torch
@@ -31,84 +31,326 @@ print("torch.add(a, b):", torch.add(a, b))
 # Subtração
 print("a - b:", a - b)
 
-# Multiplicação (elemento a elemento)
+# Multiplicação elemento a elemento (NÃO é produto de matrizes!)
 print("a * b:", a * b)
 
 # Divisão
 print("b / a:", b / a)
 
+# Divisão inteira
+print("b // a:", b // a)
+
+# Módulo (resto)
+print("b % a:", b % a)
+
 # Potenciação
 print("a ** 2:", a ** 2)
+print("torch.pow(a, 3):", torch.pow(a, 3))
 </CodeCell>
 
 <Callout type="info">
-Operadores como `+`, `-`, `*`, `/` são atalhos para funções como `torch.add()`, `torch.sub()`, `torch.mul()`, `torch.div()`.
+Operadores Python (`+`, `-`, `*`, `/`, `**`) são atalhos para funções PyTorch (`torch.add()`, `torch.sub()`, `torch.mul()`, `torch.div()`, `torch.pow()`). Use a forma que preferir — ambas são equivalentes e otimizadas.
 </Callout>
+
+### Operações com Escalares
+
+Você pode combinar tensores com números escalares:
+
+<CodeCell id="scalar-ops">
+import torch
+
+t = torch.tensor([1, 2, 3, 4, 5], dtype=torch.float32)
+print("Tensor original:", t)
+
+# Operações com escalares são aplicadas a todos os elementos
+print("t + 10:", t + 10)
+print("t * 2:", t * 2)
+print("t / 2:", t / 2)
+print("t ** 0.5:", t ** 0.5)  # Raiz quadrada
+
+# Ordem não importa para operações comutativas
+print("2 * t:", 2 * t)
+print("10 - t:", 10 - t)  # 10 - cada elemento
+</CodeCell>
 
 ## Operações In-Place
 
-Operações com sufixo `_` modificam o tensor original:
+Operações com sufixo `_` modificam o tensor **in-place** (no local), sem criar um novo tensor:
 
 <CodeCell id="inplace">
 import torch
 
 x = torch.tensor([1, 2, 3, 4], dtype=torch.float32)
 print("Original:", x)
+print("ID do tensor:", id(x))
 
-# Operação normal (cria novo tensor)
+# Operação normal: cria NOVO tensor
 y = x.add(10)
-print("Após x.add(10):")
-print("  x:", x)
-print("  y:", y)
+print("\nApós x.add(10):")
+print("  x:", x)         # x não muda
+print("  y:", y)         # y é um novo tensor
+print("  ID de y:", id(y))  # Diferente de x
 
-# Operação in-place (modifica x)
+# Operação in-place: modifica o MESMO tensor
 x.add_(10)
 print("\nApós x.add_(10):")
-print("  x:", x)
+print("  x:", x)         # x foi modificado!
+print("  ID de x:", id(x))  # Mesmo ID
 </CodeCell>
 
 <Callout type="warning">
-Operações in-place economizam memória mas podem causar problemas com autograd. Use com cuidado em contextos de treinamento.
+**Cuidado com in-place e autograd!** Operações in-place podem causar problemas durante backpropagation porque sobrescrevem valores que podem ser necessários para calcular gradientes. Use com cuidado em contextos de treinamento.
 </Callout>
 
-## Indexação e Slicing
+### Principais Operações In-Place
 
-PyTorch usa a mesma sintaxe de slicing do NumPy:
-
-<CodeCell id="slicing">
+<CodeCell id="inplace-examples">
 import torch
 
-t = torch.arange(1, 13).reshape(3, 4)
-print("Tensor original:\n", t)
+t = torch.tensor([1.0, 2.0, 3.0])
+print("Original:", t)
 
-# Slicing de linhas
-print("\nPrimeiras 2 linhas:\n", t[:2])
+# Exemplos de operações in-place
+t.add_(5)      # t = t + 5
+print("Após add_(5):", t)
 
-# Slicing de colunas
-print("\nColunas 1 a 3:\n", t[:, 1:3])
+t.mul_(2)      # t = t * 2
+print("Após mul_(2):", t)
 
-# Seleção com step
-print("\nLinhas pares, todas colunas:\n", t[::2, :])
+t.div_(3)      # t = t / 3
+print("Após div_(3):", t)
 
-# Seleção de elementos específicos
-print("\nElemento [1,2]:", t[1, 2])
+t.clamp_(min=3, max=5)  # Limita valores entre 3 e 5
+print("Após clamp_(3, 5):", t)
 
-# Indexação booleana
-mask = t > 6
-print("\nMáscara (elementos > 6):\n", mask)
-print("Elementos > 6:", t[mask])
+# fill_() preenche todo o tensor com um valor
+t.fill_(0)
+print("Após fill_(0):", t)
+
+# zero_() é atalho para fill_(0)
+t = torch.randn(3)
+t.zero_()
+print("Após zero_():", t)
 </CodeCell>
 
-<DocRef symbol="torch.Tensor" />
+## Operações Matemáticas
 
-## Broadcasting
+PyTorch oferece uma biblioteca completa de funções matemáticas:
 
-Broadcasting permite operações entre tensores de shapes diferentes, expandindo automaticamente as dimensões:
+### Funções Básicas
 
-<CodeCell id="broadcasting">
+<CodeCell id="math-basic">
 import torch
 
-# Tensor 2D
+t = torch.tensor([-2.5, -1.0, 0.0, 1.0, 2.5])
+print("Tensor:", t)
+
+# Valor absoluto
+print("abs:", torch.abs(t))
+
+# Sinal (-1, 0, ou 1)
+print("sign:", torch.sign(t))
+
+# Arredondamentos
+print("floor (para baixo):", torch.floor(t))
+print("ceil (para cima):", torch.ceil(t))
+print("round:", torch.round(t))
+print("trunc (truncar):", torch.trunc(t))
+
+# Fração e inteiro
+frac, whole = torch.modf(t)
+print("modf - fração:", frac)
+print("modf - inteiro:", whole)
+</CodeCell>
+
+### Funções Trigonométricas e Exponenciais
+
+<CodeCell id="math-trig">
+import torch
+import math
+
+# Ângulos em radianos
+angles = torch.tensor([0, math.pi/6, math.pi/4, math.pi/3, math.pi/2])
+print("Ângulos (rad):", angles)
+print("Ângulos (graus):", torch.rad2deg(angles))
+
+# Trigonometria
+print("\nsin:", torch.sin(angles))
+print("cos:", torch.cos(angles))
+print("tan:", torch.tan(angles[:4]))  # Evita tan(90°) = infinito
+
+# Inversas
+print("\narcsin:", torch.asin(torch.tensor([0.0, 0.5, 1.0])))
+
+# Exponencial e logaritmo
+t = torch.tensor([1.0, 2.0, 3.0, 4.0])
+print("\nexp:", torch.exp(t))      # e^x
+print("log:", torch.log(t))        # ln(x)
+print("log10:", torch.log10(t))    # log base 10
+print("log2:", torch.log2(t))      # log base 2
+</CodeCell>
+
+### Clamp: Limitando Valores
+
+`torch.clamp()` é extremamente útil para limitar valores dentro de um intervalo:
+
+<CodeCell id="clamp">
+import torch
+
+t = torch.tensor([-3, -1, 0, 1, 3, 5, 10])
+print("Original:", t)
+
+# Limitar valores entre 0 e 5
+clamped = torch.clamp(t, min=0, max=5)
+print("clamp(0, 5):", clamped)
+
+# Apenas limite inferior
+clamped_min = torch.clamp(t, min=0)
+print("clamp(min=0):", clamped_min)
+
+# Apenas limite superior
+clamped_max = torch.clamp(t, max=5)
+print("clamp(max=5):", clamped_max)
+
+# Uso comum: ReLU (Rectified Linear Unit) - ativação de redes neurais
+relu_output = torch.clamp(t, min=0)
+print("\nReLU (clamp min=0):", relu_output)
+
+# torch.relu() é mais direto para isso
+print("torch.relu():", torch.relu(t.float()))
+</CodeCell>
+
+<Callout type="tip">
+`torch.clamp()` é usado internamente em muitas funções de ativação e normalização. É uma das operações mais importantes em deep learning.
+</Callout>
+
+## Indexação e Slicing Avançados
+
+PyTorch usa a mesma sintaxe de slicing do NumPy, mas com algumas extensões poderosas:
+
+### Slicing Básico
+
+<CodeCell id="slicing-basic">
+import torch
+
+t = torch.arange(1, 25).reshape(4, 6)
+print("Tensor 4x6:\n", t)
+
+# Sintaxe: tensor[start:stop:step]
+print("\n=== Slicing de Linhas ===")
+print("t[0] (primeira linha):", t[0])
+print("t[:2] (primeiras 2 linhas):\n", t[:2])
+print("t[1:3] (linhas 1-2):\n", t[1:3])
+print("t[::2] (linhas 0, 2 - step 2):\n", t[::2])
+
+print("\n=== Slicing de Colunas ===")
+print("t[:, 0] (primeira coluna):", t[:, 0])
+print("t[:, :3] (primeiras 3 colunas):\n", t[:, :3])
+print("t[:, 1:4] (colunas 1-3):\n", t[:, 1:4])
+print("t[:, ::2] (colunas pares):\n", t[:, ::2])
+</CodeCell>
+
+### Indexação Booleana (Máscaras)
+
+Uma das funcionalidades mais poderosas: selecionar elementos baseado em condições:
+
+<CodeCell id="boolean-mask">
+import torch
+
+t = torch.tensor([[1, -2, 3],
+                  [-4, 5, -6],
+                  [7, -8, 9]])
+print("Tensor original:\n", t)
+
+# Criar máscara booleana
+mask = t > 0
+print("\nMáscara (t > 0):\n", mask)
+
+# Selecionar elementos com máscara
+positivos = t[mask]
+print("Elementos positivos:", positivos)
+
+# Múltiplas condições
+# Use & para AND, | para OR, ~ para NOT
+mask_range = (t > 0) & (t < 7)
+print("\nElementos entre 0 e 7:", t[mask_range])
+
+mask_extreme = (t <= -4) | (t >= 7)
+print("Elementos extremos (≤-4 ou ≥7):", t[mask_extreme])
+
+# Modificar elementos com máscara
+t_clipped = t.clone()
+t_clipped[t_clipped < 0] = 0
+print("\nNegativos zerados:\n", t_clipped)
+</CodeCell>
+
+### torch.where(): Seleção Condicional
+
+`torch.where()` seleciona elementos de dois tensores baseado em uma condição:
+
+<CodeCell id="torch-where">
+import torch
+
+x = torch.tensor([1, 2, 3, 4, 5])
+y = torch.tensor([10, 20, 30, 40, 50])
+condition = torch.tensor([True, False, True, False, True])
+
+# Se condition[i] é True, escolhe x[i]; senão, escolhe y[i]
+result = torch.where(condition, x, y)
+print("condition:", condition)
+print("x:", x)
+print("y:", y)
+print("torch.where(condition, x, y):", result)
+
+# Uso comum: substituir valores condicionalmente
+t = torch.tensor([-2, -1, 0, 1, 2])
+# Substitui negativos por 0, mantém positivos
+result = torch.where(t > 0, t, torch.zeros_like(t))
+print("\nOriginal:", t)
+print("Negativos zerados:", result)
+
+# Pode usar com escalares também
+result2 = torch.where(t > 0, t, 0)  # 0 é broadcast automaticamente
+print("Usando escalar:", result2)
+</CodeCell>
+
+### Outras Funções de Seleção
+
+<CodeCell id="selection-functions">
+import torch
+
+t = torch.tensor([[1, 2, 3],
+                  [4, 5, 6],
+                  [7, 8, 9]])
+print("Tensor:\n", t)
+
+# masked_select: retorna 1D com elementos onde máscara é True
+mask = t > 4
+selected = torch.masked_select(t, mask)
+print(f"\nmasked_select(t > 4): {selected}")
+
+# nonzero: índices de elementos não-zero
+sparse = torch.tensor([0, 1, 0, 2, 0, 0, 3])
+indices = torch.nonzero(sparse)
+print(f"\nnonzero de {sparse}:")
+print(indices.squeeze())
+
+# nonzero com mask - encontra índices onde condição é True
+indices_gt4 = torch.nonzero(t > 4)
+print(f"\nÍndices onde t > 4:")
+print(indices_gt4)
+</CodeCell>
+
+## Broadcasting: A Magia das Dimensões
+
+Broadcasting permite operações entre tensores de shapes diferentes, expandindo automaticamente as dimensões conforme necessário. Este é um conceito fundamental que você usará constantemente.
+
+### Conceito Básico
+
+<CodeCell id="broadcast-basic">
+import torch
+
+# Tensor 2D (matriz)
 matrix = torch.tensor([[1, 2, 3],
                        [4, 5, 6]])
 print("Matrix (2x3):\n", matrix)
@@ -120,46 +362,210 @@ print("\nVector (3,):", vector)
 # Broadcasting: o vetor é "expandido" para cada linha
 result = matrix + vector
 print("\nMatrix + Vector (broadcast):\n", result)
+# [1+10, 2+20, 3+30] = [11, 22, 33]
+# [4+10, 5+20, 6+30] = [14, 25, 36]
 
 # Escalar também é broadcast
 print("\nMatrix * 2:\n", matrix * 2)
 </CodeCell>
 
+### Regras de Broadcasting
+
 <Callout type="important" title="Regras de Broadcasting">
-1. Se os tensores têm número diferente de dimensões, o menor ganha dimensões de tamanho 1 à esquerda
-2. Dimensões são compatíveis se têm o mesmo tamanho ou se uma delas é 1
-3. A dimensão resultante é o máximo entre as dimensões correspondentes
+Dois tensores são "broadcastable" se, iterando das dimensões **da direita para a esquerda**:
+1. As dimensões são iguais, OU
+2. Uma das dimensões é 1, OU
+3. Uma das dimensões não existe
+
+O resultado tem o máximo de cada dimensão.
 </Callout>
+
+<CodeCell id="broadcast-rules">
+import torch
+
+# Exemplo 1: shapes compatíveis
+a = torch.ones(3, 4)      # shape: (3, 4)
+b = torch.ones(4)         # shape: (4,)
+print("a.shape:", a.shape)
+print("b.shape:", b.shape)
+print("(a + b).shape:", (a + b).shape)  # (3, 4)
+
+# Exemplo 2: shapes compatíveis com expansão
+c = torch.ones(3, 1)      # shape: (3, 1)
+d = torch.ones(1, 4)      # shape: (1, 4)
+print("\nc.shape:", c.shape)
+print("d.shape:", d.shape)
+print("(c + d).shape:", (c + d).shape)  # (3, 4)
+
+# Exemplo 3: mais dimensões
+e = torch.ones(2, 3, 4)   # shape: (2, 3, 4)
+f = torch.ones(3, 1)      # shape: (3, 1)
+print("\ne.shape:", e.shape)
+print("f.shape:", f.shape)
+print("(e + f).shape:", (e + f).shape)  # (2, 3, 4)
+
+# Exemplo 4: NÃO compatível
+g = torch.ones(3, 4)
+h = torch.ones(5)
+# print((g + h).shape)  # ERRO! 4 != 5
+print("\nERRO: (3,4) e (5,) não são compatíveis - 4 != 5")
+</CodeCell>
+
+### Visualização do Broadcasting
+
+<CodeCell id="broadcast-visual">
+import torch
+
+# Caso clássico: adicionar vetor a cada linha de matriz
+matrix = torch.arange(1, 7).reshape(2, 3)
+row_vector = torch.tensor([100, 200, 300])
+
+print("Matrix (2x3):")
+print(matrix)
+print("\nRow vector (3,):", row_vector)
+print("\nMatrix + Row vector:")
+print(matrix + row_vector)
+print("(cada linha recebe +[100, 200, 300])")
+
+# Caso: adicionar vetor a cada coluna
+col_vector = torch.tensor([[10], [20]])  # shape (2, 1)
+print("\n" + "="*40)
+print("\nColumn vector (2x1):")
+print(col_vector)
+print("\nMatrix + Column vector:")
+print(matrix + col_vector)
+print("(cada coluna recebe +[10, 20])")
+</CodeCell>
+
+### Broadcasting em Normalização
+
+Um uso muito comum de broadcasting é normalização de dados:
+
+<CodeCell id="broadcast-normalize">
+import torch
+
+# Dados: batch de 3 amostras, 4 features cada
+data = torch.tensor([[1.0, 2.0, 10.0, 100.0],
+                     [2.0, 4.0, 20.0, 200.0],
+                     [3.0, 6.0, 30.0, 300.0]])
+print("Dados originais:\n", data)
+
+# Calcular média e std por feature (coluna)
+mean = data.mean(dim=0)  # shape: (4,)
+std = data.std(dim=0)    # shape: (4,)
+print("\nMédia por feature:", mean)
+print("Std por feature:", std)
+
+# Normalizar: (x - mean) / std
+# Broadcasting: data(3,4) - mean(4,) funciona!
+normalized = (data - mean) / std
+print("\nDados normalizados:\n", normalized)
+print("\nVerificação - média ≈ 0:", normalized.mean(dim=0))
+print("Verificação - std ≈ 1:", normalized.std(dim=0))
+</CodeCell>
 
 ## Funções de Agregação
 
 Funções que reduzem tensores a valores escalares ou tensores menores:
 
-<CodeCell id="aggregation">
+<CodeCell id="aggregation-basic">
 import torch
 
 t = torch.tensor([[1., 2., 3.],
                   [4., 5., 6.]])
-print("Tensor:\n", t)
+print("Tensor (2x3):\n", t)
 
-# Agregações globais
-print("\nSoma total:", t.sum())
-print("Média:", t.mean())
-print("Máximo:", t.max())
-print("Mínimo:", t.min())
-print("Desvio padrão:", t.std())
-
-# Agregações por eixo
-print("\nSoma por coluna (dim=0):", t.sum(dim=0))
-print("Soma por linha (dim=1):", t.sum(dim=1))
-
-# Mantendo dimensões
-print("\nMédia por linha (keepdim=True):", t.mean(dim=1, keepdim=True))
+print("\n=== Agregações Globais ===")
+print(f"sum: {t.sum()}")
+print(f"mean: {t.mean()}")
+print(f"std: {t.std()}")
+print(f"var: {t.var()}")
+print(f"max: {t.max()}")
+print(f"min: {t.min()}")
+print(f"prod: {t.prod()}")  # Produto de todos elementos
 </CodeCell>
 
-<DocRef symbol="torch.sum" />
+### Agregação por Eixo (Dimensão)
 
-## Comparações
+<CodeCell id="aggregation-dim">
+import torch
+
+t = torch.tensor([[1., 2., 3.],
+                  [4., 5., 6.]])
+print("Tensor (2x3):\n", t)
+
+print("\n=== Por Dimensão ===")
+print(f"sum(dim=0) - soma por coluna: {t.sum(dim=0)}")
+print(f"sum(dim=1) - soma por linha: {t.sum(dim=1)}")
+
+print(f"\nmean(dim=0): {t.mean(dim=0)}")
+print(f"mean(dim=1): {t.mean(dim=1)}")
+
+print(f"\nmax(dim=0): {t.max(dim=0)}")
+print(f"max(dim=1): {t.max(dim=1)}")
+
+# keepdim mantém a dimensão (útil para broadcasting posterior)
+print("\n=== Com keepdim=True ===")
+print(f"sum(dim=1) shape: {t.sum(dim=1).shape}")
+print(f"sum(dim=1, keepdim=True) shape: {t.sum(dim=1, keepdim=True).shape}")
+print(t.sum(dim=1, keepdim=True))
+</CodeCell>
+
+### ArgMax e ArgMin: Encontrando Índices
+
+<CodeCell id="argmax-argmin">
+import torch
+
+t = torch.tensor([[3, 1, 4],
+                  [1, 5, 9],
+                  [2, 6, 5]])
+print("Tensor:\n", t)
+
+# Índice do maior elemento global
+print(f"\nargmax global: {t.argmax()}")  # Índice no tensor achatado
+print(f"Valor no índice {t.argmax()}: {t.flatten()[t.argmax()]}")
+
+# Índices por dimensão
+print(f"\nargmax(dim=0) - índice do maior por coluna: {t.argmax(dim=0)}")
+print(f"argmax(dim=1) - índice do maior por linha: {t.argmax(dim=1)}")
+
+# Uso comum: encontrar classe predita em classificação
+logits = torch.tensor([[0.1, 0.3, 0.6],
+                       [0.8, 0.1, 0.1],
+                       [0.2, 0.5, 0.3]])
+predictions = logits.argmax(dim=1)
+print(f"\nLogits:\n{logits}")
+print(f"Classes preditas: {predictions}")
+</CodeCell>
+
+### TopK e Sort
+
+<CodeCell id="topk-sort">
+import torch
+
+t = torch.tensor([5, 2, 8, 1, 9, 3, 7, 4, 6])
+print("Tensor:", t)
+
+# Top-K: K maiores valores e seus índices
+values, indices = torch.topk(t, k=3)
+print(f"\nTop 3 valores: {values}")
+print(f"Top 3 índices: {indices}")
+
+# Bottom-K (K menores): use largest=False
+values_bottom, indices_bottom = torch.topk(t, k=3, largest=False)
+print(f"\nBottom 3 valores: {values_bottom}")
+print(f"Bottom 3 índices: {indices_bottom}")
+
+# Sort completo
+sorted_vals, sorted_idx = torch.sort(t)
+print(f"\nOrdenado crescente: {sorted_vals}")
+print(f"Índices originais: {sorted_idx}")
+
+sorted_desc, _ = torch.sort(t, descending=True)
+print(f"Ordenado decrescente: {sorted_desc}")
+</CodeCell>
+
+## Operações de Comparação
 
 Operações de comparação retornam tensores booleanos:
 
@@ -172,29 +578,42 @@ b = torch.tensor([1, 3, 2, 4, 6])
 print("a:", a)
 print("b:", b)
 
-print("\na == b:", a == b)
-print("a > b:", a > b)
-print("a >= b:", a >= b)
+print("\n=== Comparações Element-wise ===")
+print(f"a == b: {a == b}")
+print(f"a != b: {a != b}")
+print(f"a > b: {a > b}")
+print(f"a >= b: {a >= b}")
+print(f"a < b: {a < b}")
+print(f"a <= b: {a <= b}")
 
-# Verificações
-print("\nTodos iguais?", torch.all(a == b))
-print("Algum a > 3?", torch.any(a > 3))
+print("\n=== Verificações Globais ===")
+print(f"torch.all(a == b): {torch.all(a == b)}")  # Todos iguais?
+print(f"torch.any(a == b): {torch.any(a == b)}")  # Algum igual?
+print(f"torch.all(a > 0): {torch.all(a > 0)}")    # Todos positivos?
 
-# Comparação com escalar
-print("\na > 2:", a > 2)
+print("\n=== Comparação com Tolerância ===")
+x = torch.tensor([1.0, 2.0, 3.0])
+y = torch.tensor([1.0001, 2.0, 2.9999])
+print(f"x: {x}")
+print(f"y: {y}")
+print(f"torch.allclose(x, y): {torch.allclose(x, y)}")
+print(f"torch.allclose(x, y, atol=1e-3): {torch.allclose(x, y, atol=1e-3)}")
 </CodeCell>
 
-## Operações de Álgebra Linear
+## Álgebra Linear
 
-PyTorch tem suporte completo para álgebra linear:
+PyTorch tem suporte completo para álgebra linear, essencial para deep learning:
 
-<CodeCell id="linear-algebra">
+### Produto Escalar e Multiplicação de Matrizes
+
+<CodeCell id="linear-algebra-basic">
 import torch
 
-# Produto escalar (dot product)
+# Produto escalar (dot product) - apenas para vetores 1D
 a = torch.tensor([1., 2., 3.])
 b = torch.tensor([4., 5., 6.])
-print("Dot product:", torch.dot(a, b))
+dot = torch.dot(a, b)  # 1*4 + 2*5 + 3*6 = 32
+print(f"Dot product: {a} · {b} = {dot}")
 
 # Multiplicação de matrizes
 A = torch.tensor([[1., 2.],
@@ -202,34 +621,125 @@ A = torch.tensor([[1., 2.],
 B = torch.tensor([[5., 6.],
                   [7., 8.]])
 
-# Três formas equivalentes:
-print("\nMatmul:")
+print("\nMatriz A:\n", A)
+print("Matriz B:\n", B)
+
+# Três formas equivalentes
+print("\n=== Multiplicação de Matrizes ===")
 print("torch.matmul(A, B):\n", torch.matmul(A, B))
-print("A @ B:\n", A @ B)
-print("torch.mm(A, B):\n", torch.mm(A, B))
-
-# Transposta
-print("\nTransposta de A:\n", A.T)
-
-# Norma
-v = torch.tensor([3., 4.])
-print("\nNorma de [3, 4]:", torch.norm(v))
+print("\nA @ B (operador):\n", A @ B)
+print("\ntorch.mm(A, B):\n", torch.mm(A, B))  # Apenas para 2D
 </CodeCell>
 
-<Callout type="tip">
-Use `@` para multiplicação de matrizes (matmul) e `*` para multiplicação elemento a elemento. São operações muito diferentes!
+<Callout type="warning">
+**`*` vs `@`**: Use `*` para multiplicação **elemento a elemento** e `@` para multiplicação de **matrizes**. São operações completamente diferentes!
+```python
+A * B  # elemento a elemento
+A @ B  # matmul
+```
 </Callout>
 
-<DocRef symbol="torch.matmul" />
+### Operações com Batches
+
+<CodeCell id="batch-matmul">
+import torch
+
+# Batch de matrizes
+# A: 2 matrizes de 3x4
+# B: 2 matrizes de 4x2
+A = torch.randn(2, 3, 4)
+B = torch.randn(2, 4, 2)
+
+print(f"A shape: {A.shape}")
+print(f"B shape: {B.shape}")
+
+# torch.bmm: batch matrix multiplication
+result = torch.bmm(A, B)
+print(f"bmm result shape: {result.shape}")
+
+# torch.matmul é mais flexível - funciona com batches também
+result2 = torch.matmul(A, B)
+print(f"matmul result shape: {result2.shape}")
+
+# matmul com broadcasting
+# A: (2, 3, 4), B: (4, 2) -> cada matriz de A multiplica B
+A = torch.randn(2, 3, 4)
+B = torch.randn(4, 2)
+result3 = torch.matmul(A, B)
+print(f"\nA(2,3,4) @ B(4,2) = {result3.shape}")
+</CodeCell>
+
+### Transposta e Operações Relacionadas
+
+<CodeCell id="transpose">
+import torch
+
+A = torch.tensor([[1, 2, 3],
+                  [4, 5, 6]])
+print("Matriz A (2x3):\n", A)
+
+# Transposta de matriz 2D
+print("\nA.T:\n", A.T)
+print("A.transpose(0, 1):\n", A.transpose(0, 1))
+
+# Para tensores com mais dimensões
+B = torch.randn(2, 3, 4)
+print(f"\nB shape: {B.shape}")
+print(f"B.transpose(1, 2) shape: {B.transpose(1, 2).shape}")
+
+# Norma de vetor
+v = torch.tensor([3., 4.])
+print(f"\nNorma de {v}: {torch.norm(v)}")  # sqrt(3² + 4²) = 5
+
+# Norma Frobenius de matriz
+print(f"Norma Frobenius de A: {torch.norm(A.float())}")
+</CodeCell>
+
+### Álgebra Linear Avançada
+
+<CodeCell id="linalg-advanced">
+import torch
+
+A = torch.tensor([[4., 2.],
+                  [2., 3.]], dtype=torch.float32)
+print("Matriz A:\n", A)
+
+# Determinante
+det = torch.linalg.det(A)
+print(f"\nDeterminante: {det}")
+
+# Inversa
+inv = torch.linalg.inv(A)
+print(f"Inversa:\n{inv}")
+print(f"A @ inv (deve ser I):\n{A @ inv}")
+
+# Autovalores e autovetores
+eigenvalues, eigenvectors = torch.linalg.eig(A)
+print(f"\nAutovalores: {eigenvalues}")
+
+# Traço (soma da diagonal)
+trace = torch.trace(A)
+print(f"Traço: {trace}")
+
+# Rank (posto da matriz)
+B = torch.tensor([[1., 2., 3.],
+                  [4., 5., 6.],
+                  [7., 8., 9.]])
+rank = torch.linalg.matrix_rank(B)
+print(f"\nRank de B: {rank}")  # 2 (linhas linearmente dependentes)
+</CodeCell>
 
 ## Exercícios
 
 <Exercise id="ex-arithmetic" difficulty="easy">
-Dados dois tensores `a = torch.tensor([1, 2, 3, 4])` e `b = torch.tensor([5, 6, 7, 8])`, calcule a soma dos produtos elemento a elemento (dot product) sem usar torch.dot(). Armazene o resultado em `result`.
+Dados dois tensores `a = torch.tensor([1, 2, 3, 4])` e `b = torch.tensor([5, 6, 7, 8])`, calcule a soma dos produtos elemento a elemento (dot product) **sem usar torch.dot()**. Armazene o resultado em `result`.
+Dica: multiplique elemento a elemento e depois some.
 </Exercise>
 
 <Exercise id="ex-broadcasting" difficulty="medium">
-Normalize as linhas de uma matriz para que cada linha some 1. Dado `matrix = torch.tensor([[1., 2., 3.], [4., 5., 6.]])`, crie `normalized` onde cada linha é dividida pela sua soma.
+Normalize as linhas de uma matriz para que cada linha some 1 (normalização L1 por linha).
+Dado `matrix = torch.tensor([[1., 2., 3.], [4., 5., 6.]])`, crie `normalized` onde cada linha é dividida pela sua soma.
+Dica: calcule a soma por linha com keepdim=True para broadcasting funcionar.
 </Exercise>
 
 <Exercise id="ex-slicing" difficulty="medium">
@@ -237,18 +747,38 @@ Dado um tensor `t = torch.arange(1, 17).reshape(4, 4)`, extraia a submatriz 2x2 
 </Exercise>
 
 <Exercise id="ex-mask" difficulty="hard">
-Dado `t = torch.randn(5, 5)`, substitua todos os valores negativos por zero e armazene em `clipped`. Use indexação booleana.
+Dado `t = torch.randn(5, 5)`, substitua todos os valores negativos por zero e armazene em `clipped`. Use indexação booleana ou torch.clamp().
+</Exercise>
+
+<Exercise id="ex-topk-accuracy" difficulty="hard">
+Simule cálculo de acurácia top-k. Dados logits de 5 amostras para 4 classes e labels verdadeiros:
+```python
+logits = torch.randn(5, 4)  # 5 amostras, 4 classes
+labels = torch.tensor([0, 1, 2, 3, 1])  # classes corretas
+```
+Calcule quantas amostras têm a classe correta entre as top-2 predições. Armazene em `top2_correct`.
+Dica: use torch.topk() e compare índices com labels.
+</Exercise>
+
+<Exercise id="ex-normalize-batch" difficulty="hard">
+Normalize um batch de dados para ter média 0 e desvio padrão 1 **por feature** (coluna).
+Dado `batch = torch.randn(32, 10)` (32 amostras, 10 features), crie `normalized` onde cada coluna tem média ≈ 0 e std ≈ 1.
+Use broadcasting!
 </Exercise>
 
 ## Resumo
 
 Neste módulo você aprendeu:
-- Operações aritméticas elemento a elemento
-- Operações in-place com sufixo `_`
-- Indexação e slicing avançados
-- Broadcasting para operações entre tensores de shapes diferentes
-- Funções de agregação (sum, mean, max, etc.)
-- Comparações e máscaras booleanas
-- Álgebra linear básica (matmul, dot, transposta)
 
-No próximo módulo, vamos aprender a manipular shapes de tensores!
+- **Operações aritméticas**: `+`, `-`, `*`, `/`, `**` (elemento a elemento)
+- **Operações in-place**: sufixo `_` modifica o tensor original
+- **Funções matemáticas**: `abs`, `sign`, `clamp`, trigonométricas, exponenciais
+- **Indexação avançada**: slicing, máscaras booleanas, `torch.where`, `masked_select`, `nonzero`
+- **Broadcasting**: regras para operações entre tensores de shapes diferentes
+- **Agregação**: `sum`, `mean`, `max`, `min`, `argmax`, `topk`, `sort`
+- **Comparações**: `==`, `>`, `<`, `all`, `any`, `allclose`
+- **Álgebra linear**: `dot`, `matmul`/`@`, `mm`, `bmm`, `transpose`, `norm`, `det`, `inv`
+
+<Callout type="tip">
+**Próximo passo**: No próximo módulo, vamos aprender a manipular shapes de tensores — uma habilidade essencial para preparar dados para diferentes tipos de redes neurais!
+</Callout>

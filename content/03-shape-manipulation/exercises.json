@@ -62,5 +62,39 @@
       ]
     },
     "solution": "combined = torch.stack([a, b, c]).flatten(start_dim=1)"
+  },
+  "ex-split-process": {
+    "starterCode": "import torch\n\n# Batch de imagens: 8 imagens, 3 canais, 32x32\nbatch = torch.randn(8, 3, 32, 32)\nprint('Batch original:', batch.shape)\n\n# Divida o batch em 4 partes de 2 imagens cada\n# e calcule a média de cada parte\nparts = \nmeans = ",
+    "hints": [
+      "Use torch.chunk(batch, 4, dim=0) para dividir em 4 partes iguais",
+      "Cada parte terá shape (2, 3, 32, 32)",
+      "Para calcular a média de cada parte: [part.mean() for part in parts]",
+      "Converta a lista de médias para tensor: torch.tensor(means_list)"
+    ],
+    "validation": {
+      "type": "assert",
+      "tests": [
+        "assert len(parts) == 4, f'Número de partes incorreto: esperado 4, obtido {len(parts)}'",
+        "assert parts[0].shape == torch.Size([2, 3, 32, 32]), f'Shape de cada parte incorreto: esperado (2, 3, 32, 32), obtido {tuple(parts[0].shape)}'",
+        "assert means.shape == torch.Size([4]), f'Shape das médias incorreto: esperado (4,), obtido {tuple(means.shape)}'"
+      ]
+    },
+    "solution": "parts = torch.chunk(batch, 4, dim=0)\nmeans = torch.tensor([part.mean() for part in parts])"
+  },
+  "ex-flatten-conv": {
+    "starterCode": "import torch\n\n# Saída de uma camada convolucional: batch de 4, 64 canais, 7x7 features\nconv_output = torch.randn(4, 64, 7, 7)\nprint('Conv output:', conv_output.shape)\n\n# Prepare para uma camada fully-connected\n# Mantenha o batch (4) e achate o resto para (4, 64*7*7) = (4, 3136)\nfc_input = ",
+    "hints": [
+      "Use flatten(start_dim=1) para achatar a partir da dimensão 1",
+      "Isso mantém a dimensão de batch intacta",
+      "Alternativamente: conv_output.view(4, -1)"
+    ],
+    "validation": {
+      "type": "assert",
+      "tests": [
+        "assert fc_input.shape == torch.Size([4, 3136]), f'Shape incorreto: esperado (4, 3136), obtido {tuple(fc_input.shape)}'",
+        "assert fc_input.shape[1] == 64 * 7 * 7, 'Segunda dimensão deveria ser 64*7*7=3136'"
+      ]
+    },
+    "solution": "fc_input = conv_output.flatten(start_dim=1)"
   }
 }

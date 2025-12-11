@@ -2,172 +2,561 @@
 title: "Tensores: A Fundação do PyTorch"
 order: 1
 prerequisites: []
-estimatedMinutes: 45
+estimatedMinutes: 60
 pytorchVersion: "2.2"
 ---
 
 # Tensores: A Fundação do PyTorch
 
-Tensores são a estrutura de dados fundamental do PyTorch. Se você já conhece NumPy, vai se sentir em casa — tensores são muito similares a arrays NumPy, mas com superpoderes: eles podem rodar em GPUs e suportam diferenciação automática.
+Tensores são a estrutura de dados fundamental do PyTorch e de todo o ecossistema de deep learning moderno. Se você já conhece NumPy, vai se sentir em casa — tensores são muito similares a arrays NumPy, mas com superpoderes: eles podem rodar em GPUs e suportam diferenciação automática para treinamento de redes neurais.
+
+## Por que Tensores?
+
+Antes de mergulharmos no código, é importante entender **por que** tensores são tão fundamentais para machine learning e deep learning.
+
+O termo "tensor" vem da matemática e da física, onde representa uma generalização de escalares, vetores e matrizes para dimensões arbitrárias. Em computação científica, tensores são simplesmente arrays multidimensionais — mas com operações otimizadas para álgebra linear e cálculo numérico.
+
+<Callout type="info">
+**Por que não usar listas Python?** Listas Python são flexíveis mas extremamente lentas para operações numéricas. Tensores armazenam dados em blocos contíguos de memória e usam operações vetorizadas implementadas em C/C++, sendo centenas de vezes mais rápidos.
+</Callout>
+
+Os principais motivos para usar tensores em deep learning são:
+
+1. **Performance**: Operações vetorizadas em hardware otimizado (CPU SIMD, GPU CUDA)
+2. **Diferenciação Automática**: PyTorch pode calcular gradientes automaticamente
+3. **Aceleração por GPU**: Tensores podem ser movidos para GPUs para paralelismo massivo
+4. **Interoperabilidade**: Conversão fácil com NumPy e outras bibliotecas científicas
+
+<CodeCell id="why-tensors">
+import torch
+import time
+
+# Comparação de performance: Lista Python vs Tensor
+python_list = list(range(1000000))
+tensor = torch.arange(1000000)
+
+# Soma com lista Python
+start = time.time()
+result_list = sum(python_list)
+time_list = time.time() - start
+
+# Soma com tensor
+start = time.time()
+result_tensor = tensor.sum()
+time_tensor = time.time() - start
+
+print(f"Soma com lista Python: {time_list*1000:.2f} ms")
+print(f"Soma com tensor PyTorch: {time_tensor*1000:.2f} ms")
+print(f"Tensor é ~{time_list/time_tensor:.0f}x mais rápido!")
+</CodeCell>
 
 ## O que é um Tensor?
 
 Um tensor é uma generalização de vetores e matrizes para dimensões arbitrárias:
-- **0D tensor** (escalar): um único número
-- **1D tensor** (vetor): uma sequência de números
-- **2D tensor** (matriz): uma tabela de números
-- **3D+ tensor**: estruturas multidimensionais
 
-<Callout type="info">
-Em deep learning, tensores são usados para representar tudo: dados de entrada, pesos das redes neurais, gradientes, e outputs.
+| Dimensão | Nome Comum | Exemplo em Deep Learning |
+|----------|------------|--------------------------|
+| 0D | Escalar | Loss, acurácia |
+| 1D | Vetor | Bias de uma camada, embedding de palavra |
+| 2D | Matriz | Batch de dados tabulares, pesos de camada Linear |
+| 3D | Tensor 3D | Sequência de embeddings, dados de série temporal |
+| 4D | Tensor 4D | Batch de imagens (B, C, H, W) |
+| 5D | Tensor 5D | Batch de vídeos (B, T, C, H, W) |
+
+<CodeCell id="tensor-dimensions">
+import torch
+
+# Escalar (0D) - um único número
+scalar = torch.tensor(42)
+print(f"Escalar: {scalar}, shape: {scalar.shape}, ndim: {scalar.ndim}")
+
+# Vetor (1D) - sequência de números
+vector = torch.tensor([1, 2, 3, 4, 5])
+print(f"Vetor: {vector}, shape: {vector.shape}, ndim: {vector.ndim}")
+
+# Matriz (2D) - tabela de números
+matrix = torch.tensor([[1, 2, 3],
+                       [4, 5, 6]])
+print(f"Matriz shape: {matrix.shape}, ndim: {matrix.ndim}")
+
+# Tensor 3D - "cubo" de números
+tensor_3d = torch.rand(2, 3, 4)  # 2 matrizes de 3x4
+print(f"Tensor 3D shape: {tensor_3d.shape}, ndim: {tensor_3d.ndim}")
+
+# Tensor 4D - típico para batch de imagens
+batch_images = torch.rand(32, 3, 224, 224)  # 32 imagens RGB 224x224
+print(f"Batch de imagens shape: {batch_images.shape}, ndim: {batch_images.ndim}")
+</CodeCell>
+
+<Callout type="tip">
+Em deep learning, a **primeira dimensão** geralmente representa o **batch** (lote de exemplos). Processar dados em batches é mais eficiente e ajuda no treinamento de redes neurais.
 </Callout>
 
 ## Criando Tensores
 
-Vamos começar criando tensores simples:
+### A Partir de Dados Python
 
-<CodeCell id="create-tensor">
+A forma mais direta de criar um tensor é usando `torch.tensor()`, que aceita listas, tuplas ou arrays NumPy:
+
+<CodeCell id="create-from-data">
 import torch
 
-# Criando um tensor a partir de uma lista Python
-x = torch.tensor([1, 2, 3, 4])
-print("Tensor:", x)
-print("Shape:", x.shape)
-print("Dtype:", x.dtype)
-</CodeCell>
+# A partir de lista Python
+from_list = torch.tensor([1, 2, 3, 4])
+print("De lista:", from_list)
 
-O PyTorch infere automaticamente o tipo de dados (dtype) baseado nos valores que você passa. Vamos ver diferentes formas de criar tensores:
+# A partir de lista aninhada (2D)
+from_nested = torch.tensor([[1, 2], [3, 4], [5, 6]])
+print("De lista aninhada:\n", from_nested)
 
-<CodeCell id="create-methods">
-import torch
+# A partir de tupla
+from_tuple = torch.tensor((10, 20, 30))
+print("De tupla:", from_tuple)
 
-# Tensor de zeros
-zeros = torch.zeros(3, 4)
-print("Zeros:\n", zeros)
-
-# Tensor de uns
-ones = torch.ones(2, 3)
-print("\nOnes:\n", ones)
-
-# Tensor com valores aleatórios (distribuição uniforme entre 0 e 1)
-rand = torch.rand(2, 2)
-print("\nRandom:\n", rand)
-
-# Tensor com valores de uma distribuição normal
-randn = torch.randn(2, 2)
-print("\nRandom Normal:\n", randn)
-
-# Tensor com uma sequência
-arange = torch.arange(0, 10, 2)
-print("\nArange:", arange)
+# O PyTorch infere automaticamente o dtype
+int_tensor = torch.tensor([1, 2, 3])
+float_tensor = torch.tensor([1.0, 2.0, 3.0])
+print(f"\nDtype inferido (int): {int_tensor.dtype}")
+print(f"Dtype inferido (float): {float_tensor.dtype}")
 </CodeCell>
 
 <DocRef symbol="torch.tensor" />
 
+<Callout type="warning">
+`torch.tensor()` sempre **copia** os dados. Se você quer compartilhar memória com um array NumPy existente, use `torch.from_numpy()` ou `torch.as_tensor()`.
+</Callout>
+
+### Funções de Criação Básicas
+
+PyTorch oferece várias funções para criar tensores com valores específicos:
+
+<CodeCell id="create-basic">
+import torch
+
+# Tensor de zeros
+zeros = torch.zeros(3, 4)
+print("Zeros (3x4):\n", zeros)
+
+# Tensor de uns
+ones = torch.ones(2, 3)
+print("\nOnes (2x3):\n", ones)
+
+# Tensor com valor específico
+full = torch.full((2, 3), fill_value=7.5)
+print("\nFull (2x3) com 7.5:\n", full)
+
+# Tensor vazio (valores não inicializados - lixo de memória!)
+empty = torch.empty(2, 2)
+print("\nEmpty (2x2) - valores aleatórios de memória:\n", empty)
+
+# Tensor identidade (matriz quadrada com 1s na diagonal)
+eye = torch.eye(4)
+print("\nIdentidade 4x4:\n", eye)
+</CodeCell>
+
+### Tensores com Valores Aleatórios
+
+Valores aleatórios são essenciais para inicialização de pesos em redes neurais:
+
+<CodeCell id="create-random">
+import torch
+
+# Reprodutibilidade: definir seed
+torch.manual_seed(42)
+
+# Uniforme entre 0 e 1
+rand_uniform = torch.rand(3, 3)
+print("Random Uniforme [0, 1):\n", rand_uniform)
+
+# Normal padrão (média 0, desvio padrão 1)
+rand_normal = torch.randn(3, 3)
+print("\nRandom Normal (μ=0, σ=1):\n", rand_normal)
+
+# Inteiros aleatórios
+rand_int = torch.randint(low=0, high=10, size=(3, 3))
+print("\nRandom Int [0, 10):\n", rand_int)
+
+# Permutação aleatória (útil para shuffle de dados)
+perm = torch.randperm(10)
+print("\nPermutação de 0-9:", perm)
+</CodeCell>
+
+<Callout type="info">
+**`rand` vs `randn`**: `torch.rand()` gera valores uniformes entre 0 e 1. `torch.randn()` gera valores de uma distribuição normal (Gaussiana). Para inicialização de redes neurais, `randn` é mais comum pois a distribuição normal tem propriedades matemáticas desejáveis.
+</Callout>
+
+### Sequências e Intervalos
+
+Para criar tensores com sequências numéricas:
+
+<CodeCell id="create-sequences">
+import torch
+
+# arange: similar a range() do Python
+seq1 = torch.arange(0, 10)  # 0 a 9
+print("arange(0, 10):", seq1)
+
+seq2 = torch.arange(0, 10, 2)  # 0, 2, 4, 6, 8
+print("arange(0, 10, 2):", seq2)
+
+seq3 = torch.arange(0, 1, 0.1)  # funciona com float!
+print("arange(0, 1, 0.1):", seq3)
+
+# linspace: N pontos uniformemente espaçados
+lin = torch.linspace(start=0, end=1, steps=5)
+print("\nlinspace(0, 1, 5):", lin)
+
+# logspace: pontos em escala logarítmica
+log = torch.logspace(start=0, end=2, steps=5)  # 10^0 a 10^2
+print("logspace(0, 2, 5):", log)
+</CodeCell>
+
+<DocRef symbol="torch.arange" />
+
+### Criação "Like" - Copiando Propriedades
+
+Funções `*_like` criam tensores com o mesmo shape, dtype e device de um tensor existente:
+
+<CodeCell id="create-like">
+import torch
+
+original = torch.tensor([[1, 2], [3, 4]], dtype=torch.float32)
+print("Original:", original.shape, original.dtype)
+
+# Zeros com mesmas propriedades
+zeros_like = torch.zeros_like(original)
+print("zeros_like:\n", zeros_like)
+
+# Ones com mesmas propriedades
+ones_like = torch.ones_like(original)
+print("\nones_like:\n", ones_like)
+
+# Random com mesmas propriedades
+rand_like = torch.rand_like(original)
+print("\nrand_like:\n", rand_like)
+
+# Criar tensor "vazio" e preencher
+empty_like = torch.empty_like(original)
+empty_like.fill_(3.14)
+print("\nempty_like preenchido com 3.14:\n", empty_like)
+</CodeCell>
+
 ## Tipos de Dados (dtypes)
 
-PyTorch suporta diversos tipos de dados. Os mais comuns são:
+O dtype (data type) define como os números são representados na memória:
 
-| Dtype | Descrição |
-|-------|-----------|
-| `torch.float32` | Ponto flutuante 32 bits (padrão para operações) |
-| `torch.float64` | Ponto flutuante 64 bits |
-| `torch.int32` | Inteiro 32 bits |
-| `torch.int64` | Inteiro 64 bits (padrão para inteiros) |
-| `torch.bool` | Booleano |
+### Dtypes Comuns
+
+| Dtype | Descrição | Bits | Uso Típico |
+|-------|-----------|------|------------|
+| `torch.float32` | Ponto flutuante (padrão) | 32 | Treinamento de redes |
+| `torch.float64` | Precisão dupla | 64 | Cálculos científicos |
+| `torch.float16` | Meia precisão | 16 | Treinamento mixed-precision |
+| `torch.bfloat16` | Brain float | 16 | TPUs, GPUs modernas |
+| `torch.int64` | Inteiro longo (padrão) | 64 | Índices, labels |
+| `torch.int32` | Inteiro | 32 | Índices quando memória importa |
+| `torch.bool` | Booleano | 8 | Máscaras, condições |
 
 <CodeCell id="dtypes">
 import torch
 
-# Especificando o dtype explicitamente
-x_float = torch.tensor([1, 2, 3], dtype=torch.float32)
-print("Float tensor:", x_float, "- dtype:", x_float.dtype)
+# Especificando dtype na criação
+x_float32 = torch.tensor([1, 2, 3], dtype=torch.float32)
+x_float64 = torch.tensor([1, 2, 3], dtype=torch.float64)
+x_int32 = torch.tensor([1, 2, 3], dtype=torch.int32)
+x_bool = torch.tensor([True, False, True], dtype=torch.bool)
 
-x_int = torch.tensor([1, 2, 3], dtype=torch.int64)
-print("Int tensor:", x_int, "- dtype:", x_int.dtype)
+print(f"float32: {x_float32} - bytes: {x_float32.element_size()}")
+print(f"float64: {x_float64} - bytes: {x_float64.element_size()}")
+print(f"int32: {x_int32} - bytes: {x_int32.element_size()}")
+print(f"bool: {x_bool} - bytes: {x_bool.element_size()}")
 
-# Convertendo entre tipos
-x_converted = x_int.float()
-print("Converted:", x_converted, "- dtype:", x_converted.dtype)
+# Memória total de um tensor
+big_tensor = torch.randn(1000, 1000)
+memory_mb = big_tensor.element_size() * big_tensor.numel() / (1024 * 1024)
+print(f"\nTensor 1000x1000 float32 usa: {memory_mb:.2f} MB")
+</CodeCell>
+
+### Conversão de Tipos
+
+<CodeCell id="dtype-conversion">
+import torch
+
+x = torch.tensor([1, 2, 3, 4, 5])
+print(f"Original: {x}, dtype: {x.dtype}")
+
+# Métodos de conversão rápidos
+x_float = x.float()      # para float32
+x_double = x.double()    # para float64
+x_int = x_float.int()    # para int32
+x_long = x.long()        # para int64
+x_bool = x.bool()        # para bool (0=False, resto=True)
+
+print(f"float(): {x_float.dtype}")
+print(f"double(): {x_double.dtype}")
+print(f"int(): {x_int.dtype}")
+print(f"long(): {x_long.dtype}")
+print(f"bool(): {x_bool}, dtype: {x_bool.dtype}")
+
+# Conversão genérica com .to()
+x_to = x.to(torch.float16)
+print(f"\n.to(float16): {x_to.dtype}")
+
+# Cuidado com perda de precisão!
+precise = torch.tensor([1.7, 2.3, 3.9])
+truncated = precise.int()
+print(f"\nPreciso: {precise} -> Truncado: {truncated}")
 </CodeCell>
 
 <Callout type="warning">
-Redes neurais geralmente usam `float32`. Usar `float64` dobra o uso de memória e é raramente necessário.
+**Redes neurais usam `float32` por padrão**. Usar `float64` dobra o uso de memória e geralmente não melhora resultados. Para economizar memória em GPUs modernas, considere mixed-precision training com `float16` ou `bfloat16`.
 </Callout>
 
-## Shape e Dimensões
+## Atributos Essenciais
 
-O **shape** de um tensor descreve seu tamanho em cada dimensão:
+Todo tensor tem atributos que descrevem sua estrutura e localização:
 
-<CodeCell id="shape-dims">
+<CodeCell id="attributes">
 import torch
 
-# Tensor 1D
-t1d = torch.tensor([1, 2, 3, 4, 5])
-print("1D tensor shape:", t1d.shape)
-print("Número de dimensões:", t1d.ndim)
+t = torch.randn(2, 3, 4)
 
-# Tensor 2D
-t2d = torch.tensor([[1, 2, 3], [4, 5, 6]])
-print("\n2D tensor shape:", t2d.shape)
-print("Número de dimensões:", t2d.ndim)
+print("=== Atributos Básicos ===")
+print(f"shape: {t.shape}")           # Dimensões
+print(f"size(): {t.size()}")         # Equivalente a shape
+print(f"ndim: {t.ndim}")             # Número de dimensões
+print(f"numel(): {t.numel()}")       # Número total de elementos
+print(f"dtype: {t.dtype}")           # Tipo de dados
+print(f"device: {t.device}")         # CPU ou GPU
 
-# Tensor 3D
-t3d = torch.rand(2, 3, 4)
-print("\n3D tensor shape:", t3d.shape)
-print("Número de dimensões:", t3d.ndim)
-print("Número total de elementos:", t3d.numel())
+print("\n=== Dimensões Individuais ===")
+print(f"size(0): {t.size(0)}")       # Tamanho da dimensão 0
+print(f"size(1): {t.size(1)}")       # Tamanho da dimensão 1
+print(f"size(-1): {t.size(-1)}")     # Tamanho da última dimensão
 </CodeCell>
+
+### Stride e Layout de Memória
+
+Conceitos mais avançados sobre como tensores são organizados na memória:
+
+<CodeCell id="stride-memory">
+import torch
+
+t = torch.arange(12).reshape(3, 4)
+print("Tensor 3x4:\n", t)
+
+print("\n=== Layout de Memória ===")
+print(f"shape: {t.shape}")
+print(f"stride: {t.stride()}")  # Passos para avançar em cada dimensão
+
+# Stride explica como navegar a memória:
+# stride[0] = 4: para ir de uma linha para a próxima, pule 4 elementos
+# stride[1] = 1: para ir de uma coluna para a próxima, pule 1 elemento
+
+print(f"\nDados contíguos na memória: {t.is_contiguous()}")
+
+# Transposta NÃO é contígua (mesmos dados, diferente stride)
+t_T = t.T
+print(f"\nTransposta shape: {t_T.shape}")
+print(f"Transposta stride: {t_T.stride()}")
+print(f"Transposta contígua: {t_T.is_contiguous()}")
+
+# Tornar contíguo (copia dados)
+t_T_contig = t_T.contiguous()
+print(f"\nApós contiguous() - stride: {t_T_contig.stride()}")
+</CodeCell>
+
+<Callout type="info">
+**Por que stride importa?** Algumas operações exigem que o tensor seja contíguo na memória. Se você receber um erro sobre tensores não-contíguos, use `.contiguous()` para reorganizar os dados.
+</Callout>
 
 ## Device: CPU vs GPU
 
-Tensores podem viver na CPU ou na GPU. GPUs permitem paralelismo massivo, acelerando operações com tensores grandes.
+Tensores podem viver na CPU ou na GPU. GPUs permitem paralelismo massivo, acelerando operações com tensores grandes em até 100x.
 
-<CodeCell id="device">
+<CodeCell id="device-basics">
 import torch
 
 # Por padrão, tensores são criados na CPU
-x = torch.tensor([1, 2, 3])
-print("Device:", x.device)
+x_cpu = torch.tensor([1, 2, 3])
+print(f"Device padrão: {x_cpu.device}")
 
-# Verificando se GPU está disponível
-print("CUDA disponível:", torch.cuda.is_available())
+# Verificando disponibilidade de GPU
+print(f"\nCUDA disponível: {torch.cuda.is_available()}")
+if torch.cuda.is_available():
+    print(f"Número de GPUs: {torch.cuda.device_count()}")
+    print(f"GPU atual: {torch.cuda.current_device()}")
+    print(f"Nome da GPU: {torch.cuda.get_device_name(0)}")
 
-# Criando tensor diretamente em um device
-cpu_tensor = torch.tensor([1, 2, 3], device='cpu')
-print("CPU tensor device:", cpu_tensor.device)
+# Verificando MPS (Apple Silicon)
+print(f"MPS disponível: {torch.backends.mps.is_available()}")
+</CodeCell>
 
-# Se tivéssemos GPU:
-# gpu_tensor = torch.tensor([1, 2, 3], device='cuda')
-# ou
-# gpu_tensor = cpu_tensor.to('cuda')
+### Movendo Tensores Entre Dispositivos
+
+<CodeCell id="device-movement">
+import torch
+
+# Criar tensor na CPU
+cpu_tensor = torch.randn(3, 3)
+print(f"Tensor original: {cpu_tensor.device}")
+
+# Método 1: .to(device)
+# Se GPU disponível, move para GPU; senão, mantém na CPU
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+tensor_on_device = cpu_tensor.to(device)
+print(f"Após .to(device): {tensor_on_device.device}")
+
+# Método 2: Criar diretamente no dispositivo
+direct_tensor = torch.randn(3, 3, device=device)
+print(f"Criado diretamente: {direct_tensor.device}")
+
+# Operações entre tensores DEVEM estar no mesmo device
+# tensor_cpu + tensor_gpu  # ERRO!
 </CodeCell>
 
 <Callout type="tip">
-No Pyodide (navegador), não temos acesso a GPUs. Em um ambiente real com CUDA, você pode mover tensores para GPU com `.to('cuda')` ou `.cuda()`.
+**Padrão recomendado para código portável:**
+```python
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+model = model.to(device)
+data = data.to(device)
+```
+Isso faz seu código funcionar tanto com GPU quanto sem.
 </Callout>
 
-## Acessando Elementos
+### Boas Práticas com Dispositivos
 
-Tensores suportam indexação similar a listas Python e arrays NumPy:
+<CodeCell id="device-best-practices">
+import torch
+
+# Padrão recomendado: detectar device uma vez
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+print(f"Usando device: {device}")
+
+# Criar tensores já no device correto
+def create_data(batch_size, features, device):
+    """Cria dados já no dispositivo correto"""
+    return torch.randn(batch_size, features, device=device)
+
+x = create_data(32, 100, device)
+print(f"Dados criados em: {x.device}")
+
+# Verificar device antes de operações
+def safe_add(a, b):
+    """Soma tensores garantindo mesmo device"""
+    if a.device != b.device:
+        b = b.to(a.device)
+    return a + b
+
+a = torch.tensor([1, 2, 3], device=device)
+b = torch.tensor([4, 5, 6])  # CPU
+result = safe_add(a, b)
+print(f"Resultado em: {result.device}")
+</CodeCell>
+
+## Acessando Elementos: Indexação e Slicing
+
+Tensores suportam indexação poderosa, similar a NumPy:
+
+### Indexação Básica
 
 <CodeCell id="indexing-basic">
 import torch
 
-t = torch.tensor([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
-print("Tensor:\n", t)
+t = torch.tensor([[1, 2, 3, 4],
+                  [5, 6, 7, 8],
+                  [9, 10, 11, 12]])
+print("Tensor original:\n", t)
 
-# Acessando elemento específico
-print("\nElemento [0, 0]:", t[0, 0])
-print("Elemento [1, 2]:", t[1, 2])
+# Elemento específico
+print(f"\nt[0, 0] = {t[0, 0]}")     # Primeiro elemento
+print(f"t[1, 2] = {t[1, 2]}")       # Linha 1, coluna 2
+print(f"t[-1, -1] = {t[-1, -1]}")   # Último elemento
 
-# Acessando linha inteira
-print("\nPrimeira linha:", t[0])
-print("Última linha:", t[-1])
+# Linha inteira
+print(f"\nt[0] (primeira linha) = {t[0]}")
+print(f"t[-1] (última linha) = {t[-1]}")
 
-# Acessando coluna inteira
-print("\nPrimeira coluna:", t[:, 0])
-print("Última coluna:", t[:, -1])
+# Coluna inteira (usa slice :)
+print(f"\nt[:, 0] (primeira coluna) = {t[:, 0]}")
+print(f"t[:, -1] (última coluna) = {t[:, -1]}")
+</CodeCell>
+
+### Slicing Avançado
+
+<CodeCell id="slicing-advanced">
+import torch
+
+t = torch.arange(1, 25).reshape(4, 6)
+print("Tensor 4x6:\n", t)
+
+# Slicing: [start:stop:step]
+print("\n=== Slices de Linhas ===")
+print(f"t[1:3] (linhas 1-2):\n{t[1:3]}")
+print(f"t[::2] (linhas pares):\n{t[::2]}")
+print(f"t[::-1] (linhas invertidas):\n{t[::-1]}")
+
+print("\n=== Slices de Colunas ===")
+print(f"t[:, 1:4] (colunas 1-3):\n{t[:, 1:4]}")
+print(f"t[:, ::2] (colunas pares):\n{t[:, ::2]}")
+
+print("\n=== Combinando ===")
+print(f"t[1:3, 2:5] (submatriz):\n{t[1:3, 2:5]}")
+print(f"t[::2, ::3] (linhas pares, cada 3 colunas):\n{t[::2, ::3]}")
+</CodeCell>
+
+### Indexação Booleana (Máscaras)
+
+<CodeCell id="boolean-indexing">
+import torch
+
+t = torch.tensor([[1, -2, 3],
+                  [-4, 5, -6],
+                  [7, -8, 9]])
+print("Tensor original:\n", t)
+
+# Criar máscara booleana
+mask_positive = t > 0
+print("\nMáscara (valores > 0):\n", mask_positive)
+
+# Aplicar máscara - retorna tensor 1D com elementos que satisfazem a condição
+positive_values = t[mask_positive]
+print("Valores positivos:", positive_values)
+
+# Múltiplas condições
+mask_between = (t > 0) & (t < 7)  # Use & para AND, | para OR
+print("\nEntre 0 e 7:", t[mask_between])
+
+# Modificar elementos que satisfazem condição
+t_modified = t.clone()
+t_modified[t_modified < 0] = 0  # Substituir negativos por 0
+print("\nNegativos substituídos por 0:\n", t_modified)
+</CodeCell>
+
+### Indexação Avançada
+
+<CodeCell id="fancy-indexing">
+import torch
+
+t = torch.arange(1, 13).reshape(3, 4)
+print("Tensor 3x4:\n", t)
+
+# Indexação com lista de índices
+rows = torch.tensor([0, 2])
+cols = torch.tensor([1, 3])
+
+# Selecionar elementos específicos: t[0,1] e t[2,3]
+selected = t[rows, cols]
+print(f"\nt[{rows.tolist()}, {cols.tolist()}] = {selected}")
+
+# Selecionar linhas específicas
+specific_rows = t[[0, 2]]  # Linhas 0 e 2
+print(f"\nLinhas 0 e 2:\n{specific_rows}")
+
+# Selecionar colunas específicas
+specific_cols = t[:, [0, 2, 3]]  # Colunas 0, 2 e 3
+print(f"\nColunas 0, 2, 3:\n{specific_cols}")
 </CodeCell>
 
 ## Exercícios
@@ -193,13 +582,35 @@ Dado o tensor já criado `t = torch.rand(2, 3, 4)`, extraia:
 - O dtype em `tensor_dtype`
 </Exercise>
 
+<Exercise id="ex-linspace" difficulty="medium">
+Crie um tensor com 11 valores uniformemente espaçados entre 0 e 1 (incluindo ambos) usando `torch.linspace`. Armazene em `linear_space`.
+</Exercise>
+
+<Exercise id="ex-identity-batch" difficulty="hard">
+Crie um "batch" de 4 matrizes identidade 3x3. Use `torch.eye()` e depois `unsqueeze()` e `expand()` (ou `repeat()`) para criar um tensor de shape (4, 3, 3). Armazene em `batch_identity`.
+</Exercise>
+
+<Exercise id="ex-mask-replace" difficulty="hard">
+Dado o tensor `t = torch.randn(4, 4)`, crie uma cópia onde todos os valores negativos são substituídos por seu valor absoluto. Armazene o resultado em `all_positive`. Dica: use `torch.abs()` e indexação booleana ou `torch.where()`.
+</Exercise>
+
 ## Resumo
 
 Neste módulo você aprendeu:
-- Tensores são arrays multidimensionais, a estrutura de dados fundamental do PyTorch
-- Existem várias formas de criar tensores: `torch.tensor()`, `torch.zeros()`, `torch.ones()`, `torch.rand()`, etc.
-- Tensores têm atributos importantes: `shape`, `dtype`, `device`
-- Tensores podem ser movidos entre CPU e GPU
-- A indexação de tensores funciona similar a NumPy
 
-No próximo módulo, vamos explorar operações com tensores!
+- **Por que tensores**: Performance, diferenciação automática, aceleração GPU
+- **O que são tensores**: Arrays multidimensionais com propriedades otimizadas
+- **Criação de tensores**:
+  - De dados: `torch.tensor()`, `torch.from_numpy()`
+  - Valores fixos: `zeros()`, `ones()`, `full()`, `empty()`, `eye()`
+  - Aleatórios: `rand()`, `randn()`, `randint()`, `randperm()`
+  - Sequências: `arange()`, `linspace()`, `logspace()`
+  - Copiando propriedades: `zeros_like()`, `ones_like()`, `rand_like()`
+- **Dtypes**: float32 (padrão redes), float64, int64, bool
+- **Atributos**: shape, dtype, device, stride, is_contiguous()
+- **Devices**: CPU vs GPU, `.to(device)`, padrões para código portável
+- **Indexação**: básica, slicing, máscaras booleanas, fancy indexing
+
+<Callout type="tip">
+**Próximo passo**: No próximo módulo, vamos explorar as operações que podemos fazer com tensores — desde aritmética básica até álgebra linear!
+</Callout>
