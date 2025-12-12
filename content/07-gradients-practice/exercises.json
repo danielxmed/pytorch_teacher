@@ -15,6 +15,38 @@
     },
     "solution": "y = torch.exp(x**2)\ny.backward()\ngradient = x.grad"
   },
+  "ex-numerical-check": {
+    "starterCode": "import torch\nimport math\n\n# f(x) = sin(x)\n# f'(x) = cos(x)\n\nx = torch.tensor([math.pi / 4], requires_grad=True)\n\n# Calcule y = sin(x)\ny = torch.sin(x)\n\n# Faça backward\ny.backward()\n\n# Armazene o resultado do autograd\nautograd_result = \n\n# Verificação: cos(π/4) ≈ 0.707\nprint(f'Autograd: {autograd_result.item():.4f}')\nprint(f'cos(π/4): {math.cos(math.pi/4):.4f}')",
+    "hints": [
+      "Após y.backward(), o gradiente está em x.grad",
+      "autograd_result = x.grad",
+      "O valor deve ser próximo de cos(π/4) ≈ 0.707"
+    ],
+    "validation": {
+      "type": "assert",
+      "tests": [
+        "expected = math.cos(math.pi / 4)",
+        "assert abs(autograd_result.item() - expected) < 1e-5, f'Gradiente incorreto: esperado {expected:.4f}, obtido {autograd_result.item():.4f}'"
+      ]
+    },
+    "solution": "autograd_result = x.grad"
+  },
+  "ex-autograd-grad": {
+    "starterCode": "import torch\n\n# Use torch.autograd.grad() ao invés de .backward()\n# Isso NÃO modifica x.grad\n\nx = torch.tensor([2.0], requires_grad=True)\ny = x ** 3  # y = 8\n\n# Use torch.autograd.grad() para obter o gradiente\n# Sintaxe: torch.autograd.grad(outputs, inputs)[0]\ngradient = \n\n# Verificação: x.grad deve continuar None\nprint(f'x.grad: {x.grad}')\nprint(f'gradient: {gradient}')",
+    "hints": [
+      "Use torch.autograd.grad(y, x)[0]",
+      "Isso retorna uma tupla, pegue o primeiro elemento [0]",
+      "dy/dx = 3x² = 3*4 = 12"
+    ],
+    "validation": {
+      "type": "assert",
+      "tests": [
+        "assert gradient.item() == 12.0, f'Gradiente incorreto: esperado 12.0, obtido {gradient.item()}'",
+        "assert x.grad is None, 'x.grad deveria ser None ao usar torch.autograd.grad()'"
+      ]
+    },
+    "solution": "gradient = torch.autograd.grad(y, x)[0]"
+  },
   "ex-multi-var": {
     "starterCode": "import torch\n\n# f(x, y) = x²y + xy²\n# ∂f/∂x = 2xy + y²\n# ∂f/∂y = x² + 2xy\n\nx = torch.tensor([2.0], requires_grad=True)\ny = torch.tensor([3.0], requires_grad=True)\n\n# Calcule f(x, y)\nf = \n\n# Faça backward\n\n\n# Extraia os gradientes\ngrad_x = \ngrad_y = ",
     "hints": [
@@ -30,5 +62,51 @@
       ]
     },
     "solution": "f = x**2 * y + x * y**2\nf.backward()\ngrad_x = x.grad\ngrad_y = y.grad"
+  },
+  "ex-gradient-clipping": {
+    "starterCode": "import torch\n\n# Crie um tensor com gradiente grande e aplique clipping\n\n# 1. Criar tensor com requires_grad\nx = torch.tensor([50.0, 60.0, 70.0], requires_grad=True)\n\n# 2. Operação simples para criar gradiente\ny = (x ** 2).sum()\ny.backward()\n\nprint(f'Gradiente antes: {x.grad}')\nprint(f'Norma antes: {x.grad.norm().item():.2f}')\n\n# 3. Aplicar gradient clipping usando torch.nn.utils.clip_grad_norm_\n# para que a norma seja no máximo 1.0\n\n\n# 4. Calcular a norma após clipping\nclipped_norm = ",
+    "hints": [
+      "Use torch.nn.utils.clip_grad_norm_([x], max_norm=1.0)",
+      "Passe uma lista com o tensor: [x]",
+      "Após clipping, calcule a norma: x.grad.norm()"
+    ],
+    "validation": {
+      "type": "assert",
+      "tests": [
+        "assert abs(clipped_norm - 1.0) < 1e-5, f'Norma deveria ser ~1.0, obtido {clipped_norm}'"
+      ]
+    },
+    "solution": "torch.nn.utils.clip_grad_norm_([x], max_norm=1.0)\nclipped_norm = x.grad.norm().item()"
+  },
+  "ex-second-deriv": {
+    "starterCode": "import torch\n\n# f(x) = x⁴\n# f'(x) = 4x³\n# f''(x) = 12x²\n\nx = torch.tensor([2.0], requires_grad=True)\n\n# Calcule y = x⁴\ny = x ** 4\n\n# Primeira derivada (use create_graph=True!)\nfirst_deriv = torch.autograd.grad(y, x, create_graph=True)[0]\nprint(f\"f'(2) = 4x³ = {first_deriv.item()} (esperado: 32)\")\n\n# Segunda derivada\nsecond_derivative = \n\nprint(f\"f''(2) = 12x² = {second_derivative} (esperado: 48)\")",
+    "hints": [
+      "Para segunda derivada, use autograd.grad na primeira derivada",
+      "second_derivative = torch.autograd.grad(first_deriv, x)[0]",
+      "f''(x) = 12x², em x=2: 12*4 = 48"
+    ],
+    "validation": {
+      "type": "assert",
+      "tests": [
+        "assert second_derivative.item() == 48.0, f'Segunda derivada incorreta: esperado 48.0, obtido {second_derivative.item()}'"
+      ]
+    },
+    "solution": "second_derivative = torch.autograd.grad(first_deriv, x)[0]"
+  },
+  "ex-training-step": {
+    "starterCode": "import torch\n\n# Implementar uma iteração de gradient descent com clipping\n\n# Dados\nx_input = torch.tensor([2.0])\ntarget = torch.tensor([6.0])\nlearning_rate = 0.1\nmax_norm = 1.0\n\n# Parâmetro inicial\nw = torch.tensor([5.0], requires_grad=True)\n\n# 1. Forward: y_pred = w * x\ny_pred = w * x_input\n\n# 2. Loss: (y_pred - target)²\nloss = (y_pred - target) ** 2\n\n# 3. Backward\nloss.backward()\n\nprint(f'Gradiente antes do clip: {w.grad.item()}')\n\n# 4. Gradient clipping (max_norm=1.0)\n\n\nprint(f'Gradiente após clip: {w.grad.item()}')\n\n# 5. Update: w = w - lr * grad (use torch.no_grad()!)\n\n\n# Armazene o novo valor de w\nw_updated = ",
+    "hints": [
+      "Para clipping: torch.nn.utils.clip_grad_norm_([w], max_norm=1.0)",
+      "Para update: use 'with torch.no_grad():' e depois 'w -= learning_rate * w.grad'",
+      "w_updated pode ser w.item() ou w.detach().item()",
+      "O gradiente inicial é 2*(w*x - target)*x = 2*(10-6)*2 = 16, após clip será 1"
+    ],
+    "validation": {
+      "type": "assert",
+      "tests": [
+        "assert abs(w_updated - 4.9) < 0.01, f'w_updated incorreto: esperado ~4.9, obtido {w_updated}'"
+      ]
+    },
+    "solution": "torch.nn.utils.clip_grad_norm_([w], max_norm=1.0)\nwith torch.no_grad():\n    w -= learning_rate * w.grad\nw_updated = w.item()"
   }
 }

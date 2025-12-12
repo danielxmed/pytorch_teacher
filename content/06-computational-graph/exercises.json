@@ -15,6 +15,41 @@
     },
     "solution": "predicted_grad = 54"
   },
+  "ex-is-leaf": {
+    "starterCode": "import torch\n\n# Crie os três tensores\na = torch.tensor([1.0], requires_grad=True)\nb = a * 2\nc = torch.tensor([2.0])\n\n# Identifique quais são folhas\na_is_leaf = \nb_is_leaf = \nc_is_leaf = ",
+    "hints": [
+      "is_leaf é um atributo booleano do tensor",
+      "a é folha pois foi criado diretamente com requires_grad=True",
+      "b NÃO é folha pois é resultado de uma operação",
+      "c é folha pois foi criado diretamente (mesmo sem requires_grad)"
+    ],
+    "validation": {
+      "type": "assert",
+      "tests": [
+        "assert a_is_leaf == True, f'a_is_leaf deveria ser True, obtido {a_is_leaf}'",
+        "assert b_is_leaf == False, f'b_is_leaf deveria ser False, obtido {b_is_leaf}'",
+        "assert c_is_leaf == True, f'c_is_leaf deveria ser True, obtido {c_is_leaf}'"
+      ]
+    },
+    "solution": "a_is_leaf = a.is_leaf\nb_is_leaf = b.is_leaf\nc_is_leaf = c.is_leaf"
+  },
+  "ex-retain-grad": {
+    "starterCode": "import torch\n\nx = torch.tensor([2.0], requires_grad=True)\n\n# Calcule y = x³\ny = x ** 3\n\n# IMPORTANTE: Marque y para reter seu gradiente!\n\n\n# Calcule z = y * 2\nz = y * 2\n\n# Faça backward\nz.backward()\n\n# Extraia o gradiente de y\n# dz/dy = 2, mas queremos dy/dx = 3x² = 12\ny_grad = ",
+    "hints": [
+      "Use y.retain_grad() ANTES de z.backward()",
+      "Isso deve ser feito logo após criar y e antes de usar y em outras operações",
+      "y.grad conterá dz/dy = 2 após o backward",
+      "Na verdade, você quer armazenar y.grad que é dz/dy"
+    ],
+    "validation": {
+      "type": "assert",
+      "tests": [
+        "assert y.grad is not None, 'y.grad é None - você usou retain_grad()?'",
+        "assert y_grad.item() == 2.0, f'y_grad incorreto: esperado 2.0 (dz/dy), obtido {y_grad.item()}'"
+      ]
+    },
+    "solution": "y.retain_grad()\ny_grad = y.grad"
+  },
   "ex-detach-use": {
     "starterCode": "import torch\n\nx = torch.tensor([5.0], requires_grad=True)\n\n# Calcule y = x² (com gradientes)\ny = x ** 2\n\n# Crie log_value que é x² mas SEM afetar gradientes\nlog_value = \n\n# Verificação\ny.backward()\nprint(f'x.grad: {x.grad}')",
     "hints": [
@@ -30,5 +65,39 @@
       ]
     },
     "solution": "log_value = y.detach()"
+  },
+  "ex-navigate-graph": {
+    "starterCode": "import torch\n\nx = torch.tensor([1.0], requires_grad=True)\ny = x * 2\nz = y + 3\nw = z ** 2\n\n# Conte quantas operações (grad_fn) existem no caminho de w até x\n# w.grad_fn -> z.grad_fn -> y.grad_fn -> x (folha)\n# PowBackward -> AddBackward -> MulBackward = 3 operações\n\n# Navegue pelo grafo e conte\ncount = 0\ncurrent = w.grad_fn\nwhile current is not None:\n    count += 1\n    # Pegue o próximo grad_fn\n    next_fns = current.next_functions\n    if next_fns and next_fns[0][0] is not None:\n        current = next_fns[0][0]\n        # Pare se chegou no AccumulateGrad (folha)\n        if 'AccumulateGrad' in str(current):\n            break\n    else:\n        break\n\nnum_operations = ",
+    "hints": [
+      "Use um loop para navegar pelos next_functions",
+      "Cada grad_fn conta como uma operação",
+      "Pare quando chegar em AccumulateGrad (indica tensor folha)",
+      "São 3 operações: PowBackward, AddBackward, MulBackward"
+    ],
+    "validation": {
+      "type": "assert",
+      "tests": [
+        "assert num_operations == 3, f'Número de operações incorreto: esperado 3, obtido {num_operations}'"
+      ]
+    },
+    "solution": "num_operations = count"
+  },
+  "ex-prevent-gradient": {
+    "starterCode": "import torch\n\nx1 = torch.tensor([2.0], requires_grad=True)\nx2 = torch.tensor([3.0], requires_grad=True)\n\n# Calcule y = x1 * x2, mas bloqueie o gradiente para x1\n# Dica: use detach() em x1\ny = \n\n# Faça backward\ny.backward()\n\n# Armazene os gradientes\ngrad_x1 = x1.grad  # Deve ser None\ngrad_x2 = x2.grad  # Deve ser 2.0 (valor de x1)",
+    "hints": [
+      "Use x1.detach() para desconectar x1 do grafo",
+      "y = x1.detach() * x2",
+      "Assim, dy/dx1 não será calculado (x1.grad = None)",
+      "Mas dy/dx2 = x1 = 2.0 será calculado normalmente"
+    ],
+    "validation": {
+      "type": "assert",
+      "tests": [
+        "assert grad_x1 is None, f'grad_x1 deveria ser None, obtido {grad_x1}'",
+        "assert grad_x2 is not None, 'grad_x2 não deveria ser None'",
+        "assert grad_x2.item() == 2.0, f'grad_x2 incorreto: esperado 2.0, obtido {grad_x2.item()}'"
+      ]
+    },
+    "solution": "y = x1.detach() * x2"
   }
 }

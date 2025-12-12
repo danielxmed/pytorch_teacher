@@ -23,33 +23,57 @@ Este documento serve como guia para agentes futuros que continuarão o trabalho 
 
 ---
 
+### ✅ Completo: Seção 2 - Autograd (Módulos 5-7)
+
+| Módulo | Arquivo | Linhas Antes | Linhas Depois | Exercícios |
+|--------|---------|--------------|---------------|------------|
+| 05-autograd-intro | lesson.mdx | ~254 | ~777 | 3 → 7 |
+| 06-computational-graph | lesson.mdx | ~210 | ~783 | 2 → 6 |
+| 07-gradients-practice | lesson.mdx | ~214 | ~985 | 2 → 7 |
+
+**Conteúdo expandido:**
+- **Módulo 05**: Seções sobre "Por que Autograd?", atributo `.grad`, leaf vs non-leaf tensors, padrões de treinamento
+- **Módulo 06**: Navegação de `grad_fn`, `next_functions`, `retain_grad()`, `detach()`, grafos dinâmicos
+- **Módulo 07**: `torch.autograd.grad()`, gradient clipping, debugging de gradientes, gradientes de ordem superior, training loop completo
+
+**Exercícios adicionados:**
+- Cálculo de gradientes simples e compostos
+- Acumulação e zeragem de gradientes
+- Training steps com gradient descent
+- Congelamento de parâmetros
+- Uso de `retain_grad()` e `detach()`
+- Navegação manual do grafo computacional
+- Gradient clipping e segunda derivada
+
+---
+
 ## 📋 Próximos Blocos para Enriquecimento
 
-### Bloco 2: Autograd (Módulos 5-7) - PRIORIDADE ALTA
+### ✅ Bloco 2: Autograd (Módulos 5-7) - COMPLETO
 
 Estes módulos são fundamentais para entender como o PyTorch treina redes neurais.
 
-- [ ] **05-autograd-intro** (`content/05-autograd-intro/`)
-  - Expandir explicação de diferenciação automática
-  - Adicionar visualização do grafo computacional
-  - Exemplos práticos de gradientes simples
-  - Comparação com cálculo manual de derivadas
+- [x] **05-autograd-intro** (`content/05-autograd-intro/`)
+  - ✅ Expandir explicação de diferenciação automática
+  - ✅ Adicionar visualização do grafo computacional
+  - ✅ Exemplos práticos de gradientes simples
+  - ✅ Comparação com cálculo manual de derivadas
 
-- [ ] **06-computational-graph** (`content/06-computational-graph/`)
-  - Detalhes de como o grafo é construído
-  - Operações leaf vs non-leaf
-  - `retain_grad()` e quando usar
-  - Visualização de grafos com diagramas conceituais
+- [x] **06-computational-graph** (`content/06-computational-graph/`)
+  - ✅ Detalhes de como o grafo é construído
+  - ✅ Operações leaf vs non-leaf
+  - ✅ `retain_grad()` e quando usar
+  - ✅ Visualização de grafos com diagramas conceituais
 
-- [ ] **07-gradients-practice** (`content/07-gradients-practice/`)
-  - Exercícios práticos de backpropagation
-  - `backward()` com argumentos
-  - `torch.no_grad()` e `torch.inference_mode()`
-  - Debugging de gradientes (NaN, explosão, etc.)
+- [x] **07-gradients-practice** (`content/07-gradients-practice/`)
+  - ✅ Exercícios práticos de backpropagation
+  - ✅ `backward()` com argumentos
+  - ✅ `torch.no_grad()` e `torch.inference_mode()`
+  - ✅ Debugging de gradientes (NaN, explosão, etc.)
 
-**Seções da documentação relevantes:**
+**Seções da documentação utilizadas:**
 - Seção sobre autograd no `docs_pytorch/docs.pytorch.org-llms.md`
-- Buscar: "autograd", "backward", "gradient", "requires_grad"
+- Referências: "autograd", "backward", "gradient", "requires_grad"
 
 ---
 
@@ -239,14 +263,14 @@ content/{module-id}/
 
 ## 📊 Estimativa de Esforço
 
-| Bloco | Módulos | Complexidade | Tempo Estimado |
-|-------|---------|--------------|----------------|
-| Autograd (5-7) | 3 | Alta | ~2h |
-| Redes Neurais (8-12) | 5 | Alta | ~3h |
-| Dados (13-15) | 3 | Média | ~1.5h |
-| Arquiteturas (16-20) | 5 | Alta | ~4h |
+| Bloco | Módulos | Complexidade | Status |
+|-------|---------|--------------|--------|
+| ✅ Autograd (5-7) | 3 | Alta | Completo |
+| Redes Neurais (8-12) | 5 | Alta | Pendente |
+| Dados (13-15) | 3 | Média | Pendente |
+| Arquiteturas (16-20) | 5 | Alta | Pendente |
 
 ---
 
-*Última atualização: Módulos 1-4 completados*
-*Próximo bloco recomendado: Autograd (5-7)*
+*Última atualização: Módulos 1-7 completados (Fundamentos + Autograd)*
+*Próximo bloco recomendado: Redes Neurais (8-12)*

@@ -2,183 +2,690 @@
 title: "Grafo Computacional"
 order: 6
 prerequisites: ["05-autograd-intro"]
-estimatedMinutes: 40
+estimatedMinutes: 55
 pytorchVersion: "2.2"
 ---
 
 # Grafo Computacional
 
-O PyTorch constrói um **grafo computacional dinâmico** durante a execução do código. Entender esse grafo é fundamental para usar o autograd efetivamente.
+O PyTorch constrói um **grafo computacional dinâmico** durante a execução do código. Entender esse grafo é fundamental para usar o autograd efetivamente e debugar problemas relacionados a gradientes.
 
 ## O que é o Grafo Computacional?
 
-É uma estrutura que representa todas as operações realizadas nos tensores. Cada nó é um tensor ou operação, e as arestas representam dependências.
+### A Metáfora da Receita
+
+Pense no grafo computacional como uma **receita** que registra todos os passos que você executou. Cada ingrediente é um tensor de entrada, cada passo é uma operação, e o resultado final é sua saída.
+
+Quando você pede para calcular gradientes (`.backward()`), o PyTorch percorre essa receita de trás para frente, descobrindo como cada ingrediente contribuiu para o resultado final.
+
+<CodeCell id="recipe-analogy">
+{`import torch
+
+# Ingredientes (tensores de entrada com requires_grad=True)
+farinha = torch.tensor([2.0], requires_grad=True)  # "x"
+acucar = torch.tensor([1.0], requires_grad=True)   # "y"
+
+# Passos da receita (operações)
+passo1 = farinha * 2       # Dobrar a farinha
+passo2 = acucar ** 2       # Quadrado do açúcar
+passo3 = passo1 + passo2   # Misturar
+resultado = passo3 * 3     # Triplicar
+
+print("Receita executada!")
+print(f"resultado = 3 * (2*farinha + açúcar²)")
+print(f"resultado = 3 * (2*{farinha.item()} + {acucar.item()}²) = {resultado.item()}")
+
+# O grafo registrou todos os passos!
+print(f"\\ngrafo final: {resultado.grad_fn}")`}
+</CodeCell>
+
+### DAG: Grafo Acíclico Dirigido
+
+Tecnicamente, o grafo computacional é um **DAG** (Directed Acyclic Graph):
+- **Dirigido**: As operações fluem em uma direção (entrada → saída)
+- **Acíclico**: Não há ciclos (não volta para trás durante o forward)
+- **Grafo**: Estrutura de nós (tensores/operações) e arestas (dependências)
 
 <CodeCell id="simple-graph">
-import torch
+{`import torch
 
-# Criar tensores de entrada
+# Criar tensores de entrada (FOLHAS do grafo)
 x = torch.tensor([2.0], requires_grad=True)
 y = torch.tensor([3.0], requires_grad=True)
 
-# Operações criam o grafo
-a = x + y      # AddBackward
-b = x * y      # MulBackward
-c = a + b      # AddBackward
-z = c ** 2     # PowBackward
+# Operações criam nós no grafo
+a = x + y      # Nó: AddBackward
+b = x * y      # Nó: MulBackward
+c = a + b      # Nó: AddBackward
+z = c ** 2     # Nó: PowBackward (RAIZ do grafo)
 
-print("Grafo criado!")
-print(f"z = (x + y + x * y)² = ({x.item()} + {y.item()} + {x.item()} * {y.item()})²")
-print(f"z = {z.item()}")
+print("Estrutura do Grafo:")
+print("=" * 40)
+print("Folhas (entradas): x, y")
+print("Nós intermediários: a, b, c")
+print("Raiz (saída): z")
+print(f"\\nz = (x + y + x*y)²")
+print(f"z = ({x.item()} + {y.item()} + {x.item()}*{y.item()})² = {z.item()}")
 
-# Cada tensor intermediário tem grad_fn
-print("\ngrad_fn de cada tensor:")
-print(f"  a.grad_fn: {a.grad_fn}")
-print(f"  b.grad_fn: {b.grad_fn}")
-print(f"  c.grad_fn: {c.grad_fn}")
-print(f"  z.grad_fn: {z.grad_fn}")
+# Visualização conceitual:
+print("""
+\\nVisualizacão do Grafo:
+
+      [x]     [y]     <- Folhas (requires_grad=True)
+       |\\     /|
+       | \\   / |
+       |  \\ /  |
+       | AddBackward (a=x+y)
+       |    |   |
+       |    |  MulBackward (b=x*y)
+       |    |   |
+       |  AddBackward (c=a+b)
+       |       |
+        PowBackward (z=c²)  <- Raiz
+""")`}
 </CodeCell>
 
-## Grafo Dinâmico vs Estático
+<Callout type="info">
+**Por que entender o grafo?** Quando você tem problemas com gradientes (None, NaN, etc.), entender a estrutura do grafo ajuda a identificar onde o problema está ocorrendo.
+</Callout>
 
-PyTorch usa grafos **dinâmicos** (define-by-run), ao contrário de frameworks como TensorFlow 1.x que usavam grafos estáticos.
+## grad_fn: A Porta de Entrada para o Grafo
 
-<CodeCell id="dynamic-graph">
-import torch
+O atributo `grad_fn` é a conexão entre um tensor e o grafo computacional. Ele referencia a **função** que criou esse tensor.
 
-x = torch.tensor([1.0], requires_grad=True)
+<CodeCell id="grad-fn-basics">
+{`import torch
 
-# O grafo pode mudar a cada iteração!
-for i in range(3):
-    if i % 2 == 0:
-        y = x ** 2
-    else:
-        y = x ** 3
+x = torch.tensor([2.0], requires_grad=True)
 
-    y.backward()
-    print(f"Iteração {i}: grad = {x.grad.item()}")
-    x.grad.zero_()
+# x é folha - não tem grad_fn
+print(f"x.grad_fn: {x.grad_fn}")  # None
+
+# Operações criam grad_fn
+y = x * 3
+print(f"y = x * 3")
+print(f"y.grad_fn: {y.grad_fn}")  # MulBackward
+
+z = y + 5
+print(f"\\nz = y + 5")
+print(f"z.grad_fn: {z.grad_fn}")  # AddBackward
+
+w = z ** 2
+print(f"\\nw = z ** 2")
+print(f"w.grad_fn: {w.grad_fn}")  # PowBackward
+
+# Cada grad_fn sabe como calcular o gradiente de sua operação
+print(f"\\nNome da função: {w.grad_fn.name()}")`}
+</CodeCell>
+
+### Inspecionando grad_fn de Diferentes Operações
+
+<CodeCell id="grad-fn-operations">
+{`import torch
+
+x = torch.tensor([2.0, 3.0], requires_grad=True)
+
+# Diferentes operações criam diferentes grad_fn
+ops = {
+    "x + 1": x + 1,
+    "x * 2": x * 2,
+    "x ** 2": x ** 2,
+    "x.sum()": x.sum(),
+    "x.mean()": x.mean(),
+    "x.exp()": x.exp(),
+    "x.sin()": x.sin(),
+    "torch.relu(x)": torch.relu(x),
+    "x @ x.T": (x.unsqueeze(1) @ x.unsqueeze(0)),  # matmul
+}
+
+print("Operação → grad_fn")
+print("=" * 50)
+for name, tensor in ops.items():
+    fn_name = tensor.grad_fn.name() if tensor.grad_fn else "None"
+    print(f"{name:20} → {fn_name}")`}
+</CodeCell>
+
+### next_functions: Navegando o Grafo
+
+O atributo `next_functions` permite navegar para trás no grafo, revelando as dependências:
+
+<CodeCell id="next-functions">
+{`import torch
+
+x = torch.tensor([2.0], requires_grad=True)
+y = torch.tensor([3.0], requires_grad=True)
+
+# Criar uma cadeia de operações
+a = x * y
+b = a + x
+c = b ** 2
+
+print("Navegando o grafo de c para as folhas:")
+print("=" * 50)
+
+# c foi criado por PowBackward
+print(f"c.grad_fn: {c.grad_fn}")
+
+# next_functions mostra as dependências (uma tupla de (grad_fn, index))
+print(f"\\nc.grad_fn.next_functions:")
+for i, (fn, idx) in enumerate(c.grad_fn.next_functions):
+    print(f"  [{i}] {fn} (index: {idx})")
+
+# Podemos continuar navegando
+print(f"\\nb.grad_fn.next_functions:")
+b_grad_fn = c.grad_fn.next_functions[0][0]  # Primeiro input de PowBackward
+for i, (fn, idx) in enumerate(b_grad_fn.next_functions):
+    print(f"  [{i}] {fn} (index: {idx})")
+
+# E assim sucessivamente até as folhas (AccumulateGrad)
+print(f"\\nTensores folha têm AccumulateGrad:")`}
 </CodeCell>
 
 <Callout type="tip">
-Grafos dinâmicos permitem usar controle de fluxo Python (if, for, while) normalmente. O grafo é reconstruído a cada forward pass.
+`AccumulateGrad` é o `grad_fn` especial para tensores folha. Ele indica onde os gradientes serão acumulados durante o backward.
 </Callout>
 
-## Tensores Folha vs Intermediários
+## Leaf vs Non-Leaf em Profundidade
 
-<CodeCell id="leaf-tensors">
-import torch
+### Definição Precisa
 
-# Tensores folha: criados diretamente pelo usuário
-a = torch.tensor([1.0], requires_grad=True)  # Folha
-b = torch.tensor([2.0], requires_grad=True)  # Folha
+<CodeCell id="leaf-definition">
+{`import torch
 
-# Tensores intermediários: resultado de operações
-c = a * b  # Não é folha
+# CASO 1: Tensor criado com requires_grad=True
+a = torch.tensor([1.0], requires_grad=True)
+print(f"a = torch.tensor(..., requires_grad=True)")
+print(f"  is_leaf: {a.is_leaf}, grad_fn: {a.grad_fn}")
 
-print(f"a.is_leaf: {a.is_leaf}")  # True
-print(f"b.is_leaf: {b.is_leaf}")  # True
-print(f"c.is_leaf: {c.is_leaf}")  # False
+# CASO 2: Tensor criado sem requires_grad (padrão)
+b = torch.tensor([2.0])
+print(f"\\nb = torch.tensor(...)")
+print(f"  is_leaf: {b.is_leaf}, grad_fn: {b.grad_fn}")
 
-# IMPORTANTE: Por padrão, gradientes só são retidos para folhas!
-c.backward()
-print(f"\na.grad: {a.grad}")  # Tem gradiente
-print(f"c.grad: {c.grad}")   # None! Não é retido
+# CASO 3: Resultado de operação com tensor requires_grad
+c = a * 2
+print(f"\\nc = a * 2 (operação)")
+print(f"  is_leaf: {c.is_leaf}, grad_fn: {c.grad_fn}")
+
+# CASO 4: Tensor sem grad após operação com tensores sem grad
+d = b * 2
+print(f"\\nd = b * 2 (b não tem requires_grad)")
+print(f"  is_leaf: {d.is_leaf}, grad_fn: {d.grad_fn}")
+
+# CASO 5: Tensor criado com requires_grad mas atualizado in-place depois
+e = torch.tensor([3.0], requires_grad=True)
+e.data = torch.tensor([4.0])  # Modifica dados sem criar novo tensor
+print(f"\\ne após modificar .data")
+print(f"  is_leaf: {e.is_leaf}, grad_fn: {e.grad_fn}")`}
 </CodeCell>
 
-## retain_grad() para Tensores Intermediários
+### Tabela de Referência: is_leaf
 
-<CodeCell id="retain-grad">
-import torch
+| Situação | is_leaf | grad_fn | requires_grad |
+|----------|---------|---------|---------------|
+| `torch.tensor([1.0], requires_grad=True)` | True | None | True |
+| `torch.tensor([1.0])` | True | None | False |
+| `x * 2` (x tem requires_grad) | False | MulBackward | True |
+| `x * 2` (x não tem requires_grad) | True | None | False |
+| `x.detach()` | True | None | False |
 
-a = torch.tensor([2.0], requires_grad=True)
-b = a ** 2
+### Por que Apenas Folhas Acumulam Gradientes?
 
-# Marcar para reter gradiente
+<CodeCell id="why-leaf-grads">
+{`import torch
+
+# Imagine uma rede neural: milhões de operações intermediárias!
+# Guardar gradientes de TODAS seria desperdício de memória
+
+x = torch.tensor([1.0, 2.0, 3.0], requires_grad=True)
+
+# Operações intermediárias
+y = x * 2      # 3 elementos
+z = y ** 2     # 3 elementos
+w = z.sum()    # 1 elemento
+
+# Se guardássemos gradientes de y e z:
+# - y.grad: 3 floats
+# - z.grad: 3 floats
+# Em uma rede real: gigabytes de memória desperdiçada!
+
+w.backward()
+
+print("Após backward:")
+print(f"x.grad (folha): {x.grad}")      # Armazenado!
+print(f"y.grad (intermediário): {y.grad}")  # None - não armazenado
+print(f"z.grad (intermediário): {z.grad}")  # None - não armazenado
+
+print("\\n→ Economia de memória ao não guardar gradientes intermediários!")`}
+</CodeCell>
+
+## retain_grad(): Quando e Por Quê
+
+### O Problema
+
+<CodeCell id="retain-grad-problem">
+{`import torch
+
+x = torch.tensor([2.0], requires_grad=True)
+y = x ** 2      # y = 4
+z = y * 3       # z = 12
+
+z.backward()
+
+print("Precisamos do gradiente de y para debugging...")
+print(f"y.grad: {y.grad}")  # None! 😢
+
+# Não temos como saber dz/dy diretamente após o backward`}
+</CodeCell>
+
+### A Solução
+
+<CodeCell id="retain-grad-solution">
+{`import torch
+
+x = torch.tensor([2.0], requires_grad=True)
+y = x ** 2
+y.retain_grad()  # Marcar ANTES do backward!
+
+z = y * 3
+z.backward()
+
+print("Agora temos o gradiente de y!")
+print(f"x.grad: {x.grad}")  # dz/dx = dz/dy * dy/dx = 3 * 2x = 3 * 4 = 12
+print(f"y.grad: {y.grad}")  # dz/dy = 3`}
+</CodeCell>
+
+### Casos de Uso para retain_grad
+
+<CodeCell id="retain-grad-use-cases">
+{`import torch
+
+print("Casos de uso comuns para retain_grad():")
+print("=" * 50)
+
+# 1. Debugging: Encontrar onde gradientes estão errados
+print("\\n1. DEBUGGING de Gradientes")
+x = torch.tensor([1.0], requires_grad=True)
+a = x * 2
+a.retain_grad()
+b = a + 1
 b.retain_grad()
-
 c = b ** 2
 c.backward()
+print(f"   x.grad={x.grad.item()}, a.grad={a.grad.item()}, b.grad={b.grad.item()}")
 
-print(f"a.grad: {a.grad}")  # dc/da
-print(f"b.grad: {b.grad}")  # dc/db (retido!)
+# 2. Análise de Features Intermediárias
+print("\\n2. Análise de FEATURES Intermediárias")
+# (em redes convolucionais, por exemplo)
+
+# 3. Gradient Penalty (ex: WGAN-GP)
+print("\\n3. Regularização de Gradientes")
+# Algumas técnicas precisam do gradiente em pontos intermediários`}
 </CodeCell>
 
-## backward() com retain_graph
-
-Normalmente o grafo é liberado após backward(). Para múltiplos backwards:
-
-<CodeCell id="retain-graph">
-import torch
-
-x = torch.tensor([2.0], requires_grad=True)
-y = x ** 2
-
-# Primeiro backward (libera o grafo por padrão)
-y.backward(retain_graph=True)  # Mantém o grafo!
-print("Primeiro grad:", x.grad)
-
-x.grad.zero_()
-
-# Segundo backward (só funciona porque retemos o grafo)
-y.backward()  # Agora pode liberar
-print("Segundo grad:", x.grad)
-</CodeCell>
-
-## detach() - Cortando o Grafo
-
-Use `.detach()` para criar uma cópia que não está conectada ao grafo:
-
-<CodeCell id="detach">
-import torch
-
-x = torch.tensor([2.0], requires_grad=True)
-y = x ** 2
-
-# z não está conectado ao grafo de x
-z = y.detach() * 3
-
-print(f"y.requires_grad: {y.requires_grad}")  # True
-print(f"z.requires_grad: {z.requires_grad}")  # False
-
-# z é independente - modificar não afeta backward de y
-w = y.sum()
-w.backward()
-print(f"x.grad: {x.grad}")
-</CodeCell>
-
-<Callout type="important">
-`detach()` é útil quando você quer usar valores para cálculos que não devem afetar o gradiente (como métricas de avaliação).
+<Callout type="warning" title="Cuidado com Memória!">
+Usar `retain_grad()` em muitos tensores pode consumir muita memória. Use apenas quando realmente necessário para debugging ou técnicas específicas.
 </Callout>
 
-## Visualizando o Grafo
+## Controle do Grafo
 
-<CodeCell id="inspect-graph">
-import torch
+### detach(): Quebrando o Grafo
 
-def inspect_grad_fn(tensor, depth=0):
-    """Imprime a estrutura do grafo recursivamente."""
-    indent = "  " * depth
+O método `.detach()` cria uma **cópia** do tensor que não está conectada ao grafo:
+
+<CodeCell id="detach-deep">
+{`import torch
+
+x = torch.tensor([2.0], requires_grad=True)
+y = x ** 2
+
+# y está conectado ao grafo
+print(f"y.requires_grad: {y.requires_grad}")
+print(f"y.grad_fn: {y.grad_fn}")
+
+# y_detached NÃO está conectado
+y_detached = y.detach()
+print(f"\\ny_detached.requires_grad: {y_detached.requires_grad}")
+print(f"y_detached.grad_fn: {y_detached.grad_fn}")
+
+# IMPORTANTE: Compartilham a mesma memória!
+print(f"\\nCompartilham memória: {y.data_ptr() == y_detached.data_ptr()}")
+
+# Operações com y_detached não afetam gradientes de x
+z = y_detached * 3  # Não conectado a x!
+print(f"\\nz.requires_grad: {z.requires_grad}")`}
+</CodeCell>
+
+### Casos de Uso para detach()
+
+<CodeCell id="detach-use-cases">
+{`import torch
+
+print("Casos de uso comuns para detach():")
+print("=" * 50)
+
+# 1. Métricas que não devem afetar treinamento
+print("\\n1. MÉTRICAS de Avaliação")
+x = torch.tensor([2.0], requires_grad=True)
+y_pred = x ** 2
+loss = (y_pred - 4) ** 2
+
+# Calcular métrica sem afetar gradientes
+metric = y_pred.detach().numpy()
+print(f"   Métrica: {metric[0]}")
+
+# 2. Targets em modelos com múltiplas partes
+print("\\n2. TARGETS Fixos (ex: Q-Learning)")
+# target_value = modelo_target(estado).detach()  # Não propagar gradiente
+
+# 3. Evitar computação desnecessária
+print("\\n3. Reuso de Valores Computados")
+# Quando você precisa do valor mas não do gradiente
+
+# 4. Logging e Visualização
+print("\\n4. LOGGING sem vazamento de memória")
+values_to_log = []
+for i in range(3):
+    temp = torch.tensor([float(i)], requires_grad=True)
+    result = temp ** 2
+    values_to_log.append(result.detach().item())
+print(f"   Valores: {values_to_log}")`}
+</CodeCell>
+
+### torch.no_grad() vs detach()
+
+<CodeCell id="no-grad-vs-detach-deep">
+{`import torch
+
+x = torch.tensor([2.0], requires_grad=True)
+
+# DETACH: Cria tensor desconectado, pode ser usado em qualquer lugar
+y_detach = x.detach() * 3
+print("detach():")
+print(f"  y_detach.requires_grad: {y_detach.requires_grad}")
+
+# NO_GRAD: Context manager, afeta todas operações dentro do bloco
+print("\\nno_grad():")
+with torch.no_grad():
+    y_no_grad = x * 3
+    print(f"  y_no_grad.requires_grad: {y_no_grad.requires_grad}")
+
+# Diferença prática:
+print("\\nDiferença prática:")
+print("  detach() - Usa quando precisa de UM tensor desconectado")
+print("  no_grad() - Usa para BLOCO de operações sem gradientes")
+
+# Composição:
+z = x ** 2
+with torch.no_grad():
+    w = z * 2  # w não rastreia gradientes
+    # Mas z ainda está conectado a x!
+
+z.backward()  # Funciona! z ainda está no grafo
+print(f"\\nx.grad: {x.grad}")`}
+</CodeCell>
+
+### torch.inference_mode(): Otimização para Inferência
+
+<CodeCell id="inference-mode">
+{`import torch
+
+x = torch.tensor([2.0], requires_grad=True)
+
+# no_grad: Apenas desabilita gradientes
+print("no_grad():")
+with torch.no_grad():
+    y1 = x * 3
+    print(f"  y1.requires_grad: {y1.requires_grad}")
+
+# inference_mode: Desabilita gradientes E otimiza para inferência
+print("\\ninference_mode():")
+with torch.inference_mode():
+    y2 = x * 3
+    print(f"  y2.requires_grad: {y2.requires_grad}")
+
+# inference_mode é MAIS RÁPIDO que no_grad
+# Porque faz otimizações adicionais assumindo que você não vai precisar de gradientes
+
+print("\\n→ Use inference_mode() para inferência em produção!")
+print("→ Use no_grad() quando precisar de mais flexibilidade durante desenvolvimento")`}
+</CodeCell>
+
+<Callout type="tip">
+**Quando usar cada um:**
+- `detach()`: Quando precisa desconectar UM tensor específico
+- `no_grad()`: Durante validação/teste, update de parâmetros
+- `inference_mode()`: Em produção, para máxima performance
+</Callout>
+
+## Grafos Dinâmicos vs Estáticos
+
+### O Que Significa "Dinâmico"?
+
+<CodeCell id="dynamic-explained">
+{`import torch
+
+# Em PyTorch, o grafo é reconstruído A CADA forward pass!
+x = torch.tensor([1.0], requires_grad=True)
+
+print("Grafo muda baseado em VALORES em tempo de execução:")
+print("=" * 50)
+
+for i in range(4):
+    # O grafo é diferente a cada iteração!
+    if x.item() > 0.5:
+        y = x ** 2
+        op = "x²"
+    else:
+        y = x ** 3
+        op = "x³"
+
+    y.backward()
+    print(f"Iter {i}: x={x.item():.2f}, op={op}, grad={x.grad.item():.2f}")
+
+    # Simular update e zerar gradiente
+    with torch.no_grad():
+        x -= 0.3 * x.grad
+    x.grad.zero_()`}
+</CodeCell>
+
+### Vantagens de Grafos Dinâmicos
+
+<CodeCell id="dynamic-advantages">
+{`import torch
+
+print("Vantagens de Grafos Dinâmicos:")
+print("=" * 50)
+
+# 1. CONTROLE DE FLUXO NATURAL
+print("\\n1. Controle de fluxo Python funciona normalmente:")
+def dynamic_forward(x, training=True):
+    y = x * 2
+    if training:
+        # Dropout manual (exemplo simplificado)
+        mask = torch.rand_like(x) > 0.5
+        y = y * mask.float() * 2
+    return y.sum()
+
+x = torch.tensor([1.0, 2.0, 3.0], requires_grad=True)
+loss = dynamic_forward(x, training=True)
+loss.backward()
+print(f"   Gradiente com dropout: {x.grad}")
+
+# 2. RECURSÃO NATURAL
+print("\\n2. Estruturas recursivas (ex: árvores, sequências variáveis):")
+
+def recursive_sum(x, depth):
+    if depth == 0:
+        return x
+    return x + recursive_sum(x * 0.5, depth - 1)
+
+x = torch.tensor([1.0], requires_grad=True)
+y = recursive_sum(x, depth=3)
+y.backward()
+print(f"   Gradiente de soma recursiva: {x.grad}")
+
+# 3. DEBUGGING FÁCIL
+print("\\n3. Debugging com print statements funciona!")
+def debug_forward(x):
+    y = x ** 2
+    print(f"   DEBUG: y = {y.item()}")  # Funciona normalmente!
+    z = y + 1
+    return z
+
+x = torch.tensor([2.0], requires_grad=True)
+z = debug_forward(x)
+z.backward()
+print(f"   Gradiente: {x.grad}")`}
+</CodeCell>
+
+### Comparação com Grafos Estáticos
+
+| Aspecto | Dinâmico (PyTorch) | Estático (TF 1.x, etc.) |
+|---------|-------------------|------------------------|
+| Definição | Durante execução | Antes da execução |
+| Controle de fluxo | Python nativo | Ops especiais (tf.cond) |
+| Debugging | print(), pdb normal | Ferramentas especiais |
+| Flexibilidade | Alta | Limitada |
+| Otimização | Em tempo de execução | Pré-compilação possível |
+| Uso típico | Research, prototipagem | Produção otimizada |
+
+<Callout type="info">
+**Nota histórica**: TensorFlow 2.x adotou grafos dinâmicos por padrão (eager execution) devido ao sucesso do PyTorch. JAX usa uma abordagem híbrida com compilação JIT.
+</Callout>
+
+## Debugging do Grafo
+
+### Inspecionando _saved_* Attributes
+
+Durante o forward, algumas operações salvam valores intermediários para usar no backward:
+
+<CodeCell id="saved-tensors">
+{`import torch
+
+x = torch.tensor([2.0], requires_grad=True)
+y = x ** 2
+
+# A operação Pow salvou o input para calcular o gradiente
+# (derivada de x² é 2x, então precisa do valor de x)
+print("Valores salvos pela operação PowBackward:")
+print(f"  grad_fn: {y.grad_fn}")
+
+# Acessar valores salvos (para debugging)
+# Nota: Os nomes dos atributos dependem da operação
+try:
+    # Para PowBackward, self_ é o input
+    saved = y.grad_fn._saved_self
+    print(f"  _saved_self: {saved}")
+except AttributeError as e:
+    print(f"  (atributo não disponível: {e})")
+
+# Exemplo com multiplicação
+a = torch.tensor([3.0], requires_grad=True)
+b = torch.tensor([4.0], requires_grad=True)
+c = a * b
+
+print(f"\\nPara MulBackward (c = a * b):")
+print(f"  grad_fn: {c.grad_fn}")
+# MulBackward precisa de ambos inputs para calcular gradientes`}
+</CodeCell>
+
+### Função para Visualizar o Grafo
+
+<CodeCell id="visualize-graph">
+{`import torch
+
+def print_graph(tensor, indent=0):
+    """Imprime a estrutura do grafo computacional."""
+    prefix = "  " * indent
+
     if tensor.grad_fn is None:
-        print(f"{indent}Leaf tensor")
+        if tensor.requires_grad:
+            print(f"{prefix}└─ [LEAF] requires_grad=True")
+        else:
+            print(f"{prefix}└─ [LEAF] requires_grad=False")
         return
 
-    print(f"{indent}{tensor.grad_fn}")
-    for child in tensor.grad_fn.next_functions:
-        if child[0] is not None:
-            # child[0] é o grad_fn, child[1] é o índice
-            # Criar um tensor dummy para recursão
-            print(f"{indent}  └─ {child[0]}")
+    print(f"{prefix}└─ {tensor.grad_fn.name()}")
 
+    for i, (fn, idx) in enumerate(tensor.grad_fn.next_functions):
+        if fn is not None:
+            # Criar tensor dummy para recursão (hack)
+            dummy = torch.zeros(1, requires_grad=True)
+            dummy.grad_fn = fn
+            # Na verdade, vamos só imprimir o nome
+            if hasattr(fn, 'name'):
+                print(f"{prefix}   └─ {fn.name()}")
+            else:
+                print(f"{prefix}   └─ {fn}")
+
+# Exemplo de uso
 x = torch.tensor([2.0], requires_grad=True)
 y = torch.tensor([3.0], requires_grad=True)
 
-z = (x ** 2 + y ** 2).sqrt()
-print("Grafo de z = sqrt(x² + y²):")
-inspect_grad_fn(z)
+z = ((x ** 2) + (y * 2)).sum()
+
+print("Grafo de z = sum(x² + 2y):")
+print_graph(z)`}
 </CodeCell>
 
+### Problemas Comuns e Soluções
+
+<CodeCell id="common-problems">
+{`import torch
+
+print("Problemas Comuns com o Grafo Computacional:")
+print("=" * 55)
+
+# PROBLEMA 1: grad_fn é None inesperadamente
+print("\\n1. grad_fn é None")
+x = torch.tensor([1.0])  # Esqueceu requires_grad=True!
+y = x * 2
+print(f"   x.requires_grad: {x.requires_grad}")
+print(f"   y.grad_fn: {y.grad_fn}")
+print("   → Solução: torch.tensor([1.0], requires_grad=True)")
+
+# PROBLEMA 2: RuntimeError - grafo já foi liberado
+print("\\n2. 'Trying to backward through the graph a second time'")
+x = torch.tensor([1.0], requires_grad=True)
+y = x ** 2
+y.backward()
+try:
+    y.backward()  # Erro!
+except RuntimeError as e:
+    print(f"   Erro: {str(e)[:50]}...")
+print("   → Solução: use retain_graph=True no primeiro backward")
+
+# PROBLEMA 3: In-place operation quebra o grafo
+print("\\n3. 'In-place operation modified tensor needed for gradient'")
+x = torch.tensor([1.0], requires_grad=True)
+y = x * 2
+# y += 1  # Isso pode dar erro durante backward!
+print("   → Solução: evite operações in-place em tensores do grafo")
+print("   → Use y = y + 1 ao invés de y += 1")
+
+# PROBLEMA 4: Gradiente acumula quando não deveria
+print("\\n4. Gradientes acumulando")
+x = torch.tensor([1.0], requires_grad=True)
+for i in range(3):
+    y = x ** 2
+    y.backward()
+    print(f"   Iter {i}: x.grad = {x.grad.item()}")
+    # x.grad.zero_()  # Deveria zerar!
+print("   → Solução: sempre zere gradientes entre iterações")`}
+</CodeCell>
+
+<Callout type="warning">
+**Regra de ouro**: Se algo estranho está acontecendo com seus gradientes, verifique:
+1. `requires_grad` está True?
+2. O tensor é folha ou intermediário?
+3. O grafo foi liberado após backward?
+4. Operações in-place estão quebrando o grafo?
+</Callout>
+
 ## Exercícios
+
+Teste seu entendimento do grafo computacional com estes exercícios.
 
 <Exercise id="ex-graph-understand" difficulty="medium">
 Dado o código abaixo, determine qual será o valor de `x.grad` após o backward. Armazene sua previsão em `predicted_grad`.
@@ -193,18 +700,83 @@ c = b ** 2     # c = (3x)² = 9x²
 A derivada dc/dx usando regra da cadeia é 18x = 54 em x=3.
 </Exercise>
 
+<Exercise id="ex-is-leaf" difficulty="easy">
+Crie três tensores e identifique quais são folhas:
+- `a = torch.tensor([1.0], requires_grad=True)` (folha)
+- `b = a * 2` (não folha)
+- `c = torch.tensor([2.0])` (folha sem grad)
+
+Armazene o resultado de `a.is_leaf`, `b.is_leaf`, `c.is_leaf` nas variáveis `a_is_leaf`, `b_is_leaf`, `c_is_leaf`.
+</Exercise>
+
+<Exercise id="ex-retain-grad" difficulty="medium">
+Use `retain_grad()` para obter o gradiente de um tensor intermediário. Dado:
+- `x = torch.tensor([2.0], requires_grad=True)`
+- `y = x ** 3` (queremos o gradiente de y!)
+- `z = y * 2`
+
+Obtenha `dy/dx` (armazene em `y_grad`) e verifique que é `3x² = 12` para `x=2`.
+</Exercise>
+
 <Exercise id="ex-detach-use" difficulty="medium">
 Crie uma função que calcula `y = x²` e também retorna `x²` para logging, mas o valor de logging não deve afetar os gradientes. Armazene o valor de logging em `log_value` (deve ser um tensor sem gradientes).
 </Exercise>
 
+<Exercise id="ex-navigate-graph" difficulty="hard">
+Navegue pelo grafo computacional para encontrar quantas operações existem entre a saída e as folhas. Dado:
+- `x = torch.tensor([1.0], requires_grad=True)`
+- `y = x * 2`
+- `z = y + 3`
+- `w = z ** 2`
+
+Conte quantos `grad_fn` existem no caminho de `w` até `x` (incluindo w.grad_fn) e armazene em `num_operations`. (Resposta: 3 - PowBackward, AddBackward, MulBackward)
+</Exercise>
+
+<Exercise id="ex-prevent-gradient" difficulty="hard">
+Dado o código abaixo, faça com que o gradiente NÃO flua para `x1`, mas flua normalmente para `x2`:
+- `x1 = torch.tensor([2.0], requires_grad=True)`
+- `x2 = torch.tensor([3.0], requires_grad=True)`
+- Calcule `y = x1 * x2` mas bloqueie o gradiente de x1
+- Armazene `x1.grad` em `grad_x1` (deve ser None) e `x2.grad` em `grad_x2` (deve ser 2.0)
+
+Dica: use `.detach()` estrategicamente.
+</Exercise>
+
 ## Resumo
 
-Neste módulo você aprendeu:
-- PyTorch constrói grafos computacionais dinamicamente
-- Tensores folha vs intermediários
-- `retain_grad()` para manter gradientes de intermediários
-- `retain_graph=True` para múltiplos backwards
-- `detach()` para cortar conexões no grafo
-- Como inspecionar a estrutura do grafo
+Neste módulo você aprendeu sobre o grafo computacional do PyTorch:
 
-No próximo módulo, vamos colocar o autograd em prática!
+### Conceitos Principais
+
+| Conceito | Descrição |
+|----------|-----------|
+| Grafo Computacional | DAG que registra todas as operações para calcular gradientes |
+| `grad_fn` | Referência à função que criou o tensor |
+| `next_functions` | Conexões para os inputs da operação |
+| Folha (Leaf) | Tensor criado diretamente pelo usuário |
+| `retain_grad()` | Guarda gradientes de tensores intermediários |
+| `detach()` | Cria cópia desconectada do grafo |
+
+### Tabela de Controle do Grafo
+
+| Método | Efeito | Uso Típico |
+|--------|--------|------------|
+| `x.requires_grad_(False)` | Desabilita gradientes | Freezing |
+| `x.detach()` | Desconecta do grafo | Targets, métricas |
+| `torch.no_grad()` | Bloco sem gradientes | Validação |
+| `torch.inference_mode()` | Otimizado para inferência | Produção |
+| `retain_grad()` | Guarda grad intermediário | Debugging |
+| `retain_graph=True` | Mantém grafo após backward | Múltiplos backwards |
+
+### Armadilhas Comuns
+
+<Callout type="warning">
+- Esquecer `requires_grad=True` → `grad_fn` será None
+- Operações in-place em tensores do grafo → Erro no backward
+- Múltiplos backwards sem `retain_graph=True` → Grafo já liberado
+- Esperar gradientes em non-leaf → Use `retain_grad()`
+</Callout>
+
+<Callout type="tip">
+**Próximo passo**: No próximo módulo, vamos colocar tudo em prática com exercícios avançados de gradientes, incluindo gradient clipping, debugging de NaN/Inf, e implementação de training loops completos!
+</Callout>

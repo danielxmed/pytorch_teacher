@@ -2,27 +2,44 @@
 title: "Gradientes na Prática"
 order: 7
 prerequisites: ["05-autograd-intro", "06-computational-graph"]
-estimatedMinutes: 50
+estimatedMinutes: 60
 pytorchVersion: "2.2"
 ---
 
 # Gradientes na Prática
 
-Neste módulo, vamos consolidar o conhecimento de autograd com exemplos práticos e comparações com cálculo manual de derivadas.
+Neste módulo, vamos consolidar todo o conhecimento de autograd com exemplos práticos, técnicas avançadas, e debugging de problemas comuns. Você vai aprender a usar gradientes de forma eficiente em cenários reais de deep learning.
 
-## Verificando Gradientes Manualmente
+## Por que Este Módulo?
 
-Vamos calcular gradientes de funções conhecidas e comparar com o autograd:
+Nos módulos anteriores, você aprendeu os conceitos fundamentais do autograd e do grafo computacional. Agora é hora de colocar tudo em prática:
 
-<CodeCell id="verify-gradients">
-import torch
+- Verificar gradientes calculados pelo PyTorch comparando com cálculos manuais
+- Usar `torch.autograd.grad()` como alternativa ao `.backward()`
+- Implementar gradient clipping para estabilizar treinamento
+- Debugar problemas comuns: gradientes NaN, Inf, vanishing/exploding
+- Calcular gradientes de ordem superior
+- Implementar um training loop completo do zero
+
+<Callout type="info">
+Este módulo marca a transição da teoria para a prática. Após completá-lo, você estará pronto para construir e treinar redes neurais reais!
+</Callout>
+
+## Verificando Gradientes: Manual vs Autograd
+
+A melhor forma de entender gradientes é calculá-los manualmente e comparar com o PyTorch.
+
+### Função Polinomial
+
+<CodeCell id="verify-polynomial">
+{`import torch
 
 # f(x) = x³ - 2x² + 3x - 1
 # f'(x) = 3x² - 4x + 3
 
 x = torch.tensor([2.0], requires_grad=True)
 
-# PyTorch
+# PyTorch calcula automaticamente
 y = x**3 - 2*x**2 + 3*x - 1
 y.backward()
 pytorch_grad = x.grad.item()
@@ -30,184 +47,938 @@ pytorch_grad = x.grad.item()
 # Cálculo manual: f'(2) = 3(4) - 4(2) + 3 = 12 - 8 + 3 = 7
 manual_grad = 3*2**2 - 4*2 + 3
 
-print(f"PyTorch: {pytorch_grad}")
-print(f"Manual:  {manual_grad}")
-print(f"Iguais: {pytorch_grad == manual_grad}")
+print(f"f(x) = x³ - 2x² + 3x - 1")
+print(f"f'(x) = 3x² - 4x + 3")
+print(f"\\nEm x = 2:")
+print(f"  PyTorch: {pytorch_grad}")
+print(f"  Manual:  {manual_grad}")
+print(f"  Match:   {pytorch_grad == manual_grad}")`}
 </CodeCell>
 
-## Gradientes de Funções Vetoriais
+### Função Exponencial
 
-<CodeCell id="vector-gradients">
-import torch
+<CodeCell id="verify-exponential">
+{`import torch
+import math
 
-# Função: f(x) = sum(x²) para x ∈ R³
-x = torch.tensor([1.0, 2.0, 3.0], requires_grad=True)
+# f(x) = e^(x²)
+# f'(x) = 2x * e^(x²)   (regra da cadeia)
 
-y = (x ** 2).sum()  # y = x₁² + x₂² + x₃²
+x = torch.tensor([1.0], requires_grad=True)
+
+y = torch.exp(x ** 2)
 y.backward()
+pytorch_grad = x.grad.item()
 
-print(f"x: {x.tolist()}")
-print(f"y = sum(x²) = {y.item()}")
-print(f"∂y/∂x = 2x = {x.grad.tolist()}")  # [2, 4, 6]
+# Manual: f'(1) = 2*1 * e^1 = 2e
+manual_grad = 2 * 1 * math.exp(1)
+
+print(f"f(x) = e^(x²)")
+print(f"f'(x) = 2x * e^(x²)")
+print(f"\\nEm x = 1:")
+print(f"  PyTorch: {pytorch_grad:.6f}")
+print(f"  Manual:  {manual_grad:.6f}")
+print(f"  Diff:    {abs(pytorch_grad - manual_grad):.2e}")`}
 </CodeCell>
 
-## Regra da Cadeia em Ação
+### Função Composta (Regra da Cadeia)
 
-O autograd aplica a regra da cadeia automaticamente:
+<CodeCell id="verify-chain-rule">
+{`import torch
+import math
 
-<CodeCell id="chain-rule">
-import torch
+# h(x) = sin(x²)³
+# h'(x) = 3*sin(x²)² * cos(x²) * 2x
+#      = 6x * sin²(x²) * cos(x²)
 
 x = torch.tensor([2.0], requires_grad=True)
 
-# Função composta: h(x) = (sin(x²))²
-# h'(x) = 2*sin(x²)*cos(x²)*2x = 4x*sin(x²)*cos(x²)
-
-y = x ** 2           # u = x²
-z = torch.sin(y)     # v = sin(u)
-w = z ** 2           # w = v²
+# PyTorch com operações separadas (para clareza)
+u = x ** 2           # u = x²
+v = torch.sin(u)     # v = sin(u)
+w = v ** 3           # w = v³ = sin³(x²)
 
 w.backward()
+pytorch_grad = x.grad.item()
 
-# Verificação manual
-import math
+# Cálculo manual
 x_val = 2.0
-manual = 4 * x_val * math.sin(x_val**2) * math.cos(x_val**2)
+sin_val = math.sin(x_val ** 2)
+cos_val = math.cos(x_val ** 2)
+manual_grad = 6 * x_val * (sin_val ** 2) * cos_val
 
-print(f"PyTorch: {x.grad.item():.6f}")
-print(f"Manual:  {manual:.6f}")
+print(f"h(x) = sin³(x²)")
+print(f"h'(x) = 6x * sin²(x²) * cos(x²)")
+print(f"\\nEm x = 2:")
+print(f"  PyTorch: {pytorch_grad:.6f}")
+print(f"  Manual:  {manual_grad:.6f}")
+print(f"  Match:   {abs(pytorch_grad - manual_grad) < 1e-6}")`}
 </CodeCell>
 
-## Gradientes para Redução
+### Verificação Numérica (Finite Differences)
 
-Quando temos operações de redução (sum, mean), os gradientes fluem para trás:
+Uma técnica útil para verificar gradientes é a aproximação por diferenças finitas:
 
-<CodeCell id="reduction-grads">
-import torch
+<CodeCell id="finite-differences">
+{`import torch
 
-# MSE Loss manual
-predictions = torch.tensor([1.0, 2.0, 3.0], requires_grad=True)
-targets = torch.tensor([1.5, 2.5, 3.5])
+def numerical_gradient(f, x, epsilon=1e-5):
+    """Calcula gradiente numericamente usando diferenças finitas centrais."""
+    grad = torch.zeros_like(x)
+    for i in range(len(x)):
+        x_plus = x.clone()
+        x_minus = x.clone()
+        x_plus[i] += epsilon
+        x_minus[i] -= epsilon
+        grad[i] = (f(x_plus) - f(x_minus)) / (2 * epsilon)
+    return grad
 
-# loss = mean((pred - target)²)
-diff = predictions - targets
-squared = diff ** 2
-loss = squared.mean()
+# Função de teste
+def f(x):
+    return (x ** 3).sum() + (x ** 2).sum()
 
-loss.backward()
-
-print(f"Predições: {predictions.tolist()}")
-print(f"Targets:   {targets.tolist()}")
-print(f"Diferença: {diff.tolist()}")
-print(f"Loss:      {loss.item()}")
-print(f"Gradientes: {predictions.grad.tolist()}")
-
-# Verificação: d(loss)/d(pred) = 2*(pred-target)/n
-manual_grad = 2 * (predictions.detach() - targets) / len(predictions)
-print(f"Manual:     {manual_grad.tolist()}")
-</CodeCell>
-
-## Gradiente de Produto Escalar
-
-<CodeCell id="dot-product-grad">
-import torch
-
-# z = x · y (produto escalar)
 x = torch.tensor([1.0, 2.0, 3.0], requires_grad=True)
-y = torch.tensor([4.0, 5.0, 6.0], requires_grad=True)
 
-z = torch.dot(x, y)  # z = x₁y₁ + x₂y₂ + x₃y₃
+# Gradiente via autograd
+y = f(x)
+y.backward()
+autograd_grad = x.grad.clone()
+
+# Gradiente via diferenças finitas
+x_detached = x.detach().clone()
+numerical_grad = numerical_gradient(f, x_detached)
+
+print("f(x) = sum(x³) + sum(x²)")
+print(f"x = {x.detach().tolist()}")
+print(f"\\nAutograd:    {autograd_grad.tolist()}")
+print(f"Numérico:    {numerical_grad.tolist()}")
+print(f"Diferença:   {(autograd_grad - numerical_grad).abs().max().item():.2e}")`}
+</CodeCell>
+
+<Callout type="tip">
+Use verificação numérica (gradcheck) quando implementar operações customizadas para garantir que seus gradientes estão corretos!
+</Callout>
+
+## torch.autograd.grad(): Alternativa ao .backward()
+
+O PyTorch oferece `torch.autograd.grad()` como alternativa funcional ao `.backward()`:
+
+<CodeCell id="autograd-grad-basic">
+{`import torch
+
+x = torch.tensor([2.0], requires_grad=True)
+y = x ** 3  # y = 8
+
+# Método 1: .backward() - modifica x.grad
+y.backward()
+print(f"Usando .backward():")
+print(f"  x.grad = {x.grad}")
+
+# Resetar
+x.grad = None
+
+# Método 2: torch.autograd.grad() - retorna gradiente
+y = x ** 3
+grad = torch.autograd.grad(y, x)[0]
+print(f"\\nUsando torch.autograd.grad():")
+print(f"  grad = {grad}")
+print(f"  x.grad = {x.grad}")  # Continua None!`}
+</CodeCell>
+
+### Vantagens do autograd.grad()
+
+<CodeCell id="autograd-grad-advantages">
+{`import torch
+
+print("Vantagens de torch.autograd.grad():")
+print("=" * 50)
+
+# 1. Não modifica .grad (mais funcional)
+print("\\n1. Não modifica .grad:")
+x = torch.tensor([2.0], requires_grad=True)
+y = x ** 2
+grad1 = torch.autograd.grad(y, x, retain_graph=True)[0]
+grad2 = torch.autograd.grad(y, x)[0]
+print(f"   Múltiplos grads sem zerar: {grad1.item()}, {grad2.item()}")
+
+# 2. Gradiente w.r.t. inputs específicos
+print("\\n2. Gradiente para inputs específicos:")
+a = torch.tensor([2.0], requires_grad=True)
+b = torch.tensor([3.0], requires_grad=True)
+c = torch.tensor([4.0], requires_grad=True)
+y = a * b + c
+
+# Só queremos gradiente em relação a 'a'
+grad_a = torch.autograd.grad(y, a)[0]
+print(f"   Apenas grad_a: {grad_a.item()} (não calculou para b e c)")
+
+# 3. Múltiplos outputs
+print("\\n3. Múltiplos outputs/inputs:")
+x = torch.tensor([2.0], requires_grad=True)
+y1 = x ** 2
+y2 = x ** 3
+grads = torch.autograd.grad([y1, y2], x)
+print(f"   Soma dos gradientes: {grads[0].item()}")`}
+</CodeCell>
+
+### Sintaxe Completa
+
+<CodeCell id="autograd-grad-syntax">
+{`import torch
+
+# Assinatura:
+# torch.autograd.grad(outputs, inputs, grad_outputs=None,
+#                     retain_graph=None, create_graph=False)
+
+x = torch.tensor([2.0], requires_grad=True)
+y = x ** 2
+
+# Parâmetros importantes:
+print("Parâmetros de torch.autograd.grad():")
+print("=" * 50)
+
+# grad_outputs: Pesos para cada output (para outputs não-escalares)
+print("\\n1. grad_outputs (para outputs não-escalares):")
+x = torch.tensor([1.0, 2.0, 3.0], requires_grad=True)
+y = x ** 2  # [1, 4, 9]
+weights = torch.tensor([1.0, 1.0, 1.0])
+grad = torch.autograd.grad(y, x, grad_outputs=weights)[0]
+print(f"   grad com weights=[1,1,1]: {grad.tolist()}")
+
+# create_graph: Para gradientes de ordem superior
+print("\\n2. create_graph (para derivadas de derivadas):")
+x = torch.tensor([2.0], requires_grad=True)
+y = x ** 3
+first_deriv = torch.autograd.grad(y, x, create_graph=True)[0]
+second_deriv = torch.autograd.grad(first_deriv, x)[0]
+print(f"   y = x³")
+print(f"   dy/dx = {first_deriv.item()} (= 3x² = 12)")
+print(f"   d²y/dx² = {second_deriv.item()} (= 6x = 12)")`}
+</CodeCell>
+
+## Gradient Clipping: Estabilizando o Treinamento
+
+### O Problema: Gradientes Explosivos
+
+<CodeCell id="exploding-gradients">
+{`import torch
+
+# Simulação de gradientes explosivos
+# Em redes profundas, gradientes podem crescer exponencialmente
+
+def simulate_deep_network(depth, x):
+    """Simula propagação em rede profunda com pesos > 1."""
+    for _ in range(depth):
+        x = x * 2  # Cada camada "amplifica" o gradiente
+    return x.sum()
+
+x = torch.tensor([1.0], requires_grad=True)
+
+for depth in [5, 10, 15, 20]:
+    y = simulate_deep_network(depth, x)
+    y.backward()
+    print(f"Depth {depth:2d}: grad = {x.grad.item():,.0f}")
+    x.grad.zero_()
+
+print("\\n→ Gradientes crescem exponencialmente com a profundidade!")`}
+</CodeCell>
+
+### Solução: Gradient Clipping
+
+<CodeCell id="gradient-clipping-demo">
+{`import torch
+import torch.nn as nn
+
+# Criar parâmetros simulando uma rede
+params = [
+    torch.tensor([100.0], requires_grad=True),
+    torch.tensor([-200.0], requires_grad=True),
+    torch.tensor([50.0], requires_grad=True),
+]
+
+# Simular gradientes grandes
+for p in params:
+    p.grad = torch.randn_like(p) * 100  # Gradientes grandes
+
+print("ANTES do clipping:")
+for i, p in enumerate(params):
+    print(f"  param[{i}].grad = {p.grad.item():.2f}")
+
+# Calcular norma total
+total_norm = torch.sqrt(sum(p.grad.pow(2).sum() for p in params))
+print(f"  Norma total: {total_norm.item():.2f}")
+
+# Método 1: clip_grad_norm_ (mais comum)
+print("\\nMétodo 1: clip_grad_norm_(max_norm=10)")
+# Resetar gradientes
+for p in params:
+    p.grad = torch.randn_like(p) * 100
+
+torch.nn.utils.clip_grad_norm_(params, max_norm=10.0)
+
+for i, p in enumerate(params):
+    print(f"  param[{i}].grad = {p.grad.item():.2f}")
+
+new_norm = torch.sqrt(sum(p.grad.pow(2).sum() for p in params))
+print(f"  Nova norma: {new_norm.item():.2f}")`}
+</CodeCell>
+
+### Tipos de Gradient Clipping
+
+<CodeCell id="clipping-types">
+{`import torch
+import torch.nn as nn
+
+# Criar parâmetros de exemplo
+def create_params_with_grads():
+    params = [torch.randn(3, requires_grad=True) for _ in range(3)]
+    for p in params:
+        p.grad = torch.randn_like(p) * 50  # Gradientes grandes
+    return params
+
+print("Tipos de Gradient Clipping:")
+print("=" * 50)
+
+# 1. clip_grad_norm_: Escala gradientes para que norma total <= max_norm
+print("\\n1. clip_grad_norm_ (escala pela norma total)")
+params = create_params_with_grads()
+torch.nn.utils.clip_grad_norm_(params, max_norm=1.0)
+total_norm = torch.sqrt(sum(p.grad.pow(2).sum() for p in params))
+print(f"   Norma após clip: {total_norm.item():.4f}")
+
+# 2. clip_grad_value_: Clipa cada valor individualmente
+print("\\n2. clip_grad_value_ (clipa valores individuais)")
+params = create_params_with_grads()
+torch.nn.utils.clip_grad_value_(params, clip_value=1.0)
+print(f"   Todos os valores em [-1, 1]:")
+for i, p in enumerate(params):
+    print(f"   param[{i}].grad: min={p.grad.min():.2f}, max={p.grad.max():.2f}")`}
+</CodeCell>
+
+<Callout type="tip">
+**Quando usar cada tipo:**
+- `clip_grad_norm_`: Mais comum, preserva a direção dos gradientes
+- `clip_grad_value_`: Mais agressivo, útil quando alguns gradientes são muito maiores que outros
+</Callout>
+
+### Padrão de Uso no Training Loop
+
+<CodeCell id="clipping-training-loop">
+{`import torch
+import torch.nn as nn
+
+# Exemplo de training loop com gradient clipping
+print("Padrão de training loop com gradient clipping:")
+print("=" * 50)
+print("""
+for epoch in range(num_epochs):
+    for batch in dataloader:
+        # Forward
+        output = model(batch)
+        loss = loss_fn(output, target)
+
+        # Backward
+        optimizer.zero_grad()
+        loss.backward()
+
+        # Gradient Clipping (ANTES do optimizer.step!)
+        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+
+        # Update
+        optimizer.step()
+""")
+
+print("\\nIMPORTANTE: Clipping deve ser feito:")
+print("  1. DEPOIS de loss.backward()")
+print("  2. ANTES de optimizer.step()")`}
+</CodeCell>
+
+## Debugging de Gradientes
+
+### Gradiente é None
+
+<CodeCell id="debug-grad-none">
+{`import torch
+
+print("Debugging: Gradiente é None")
+print("=" * 50)
+
+# Causa 1: requires_grad=False
+print("\\n1. requires_grad=False:")
+x = torch.tensor([1.0])  # Padrão é False!
+y = x ** 2
+try:
+    y.backward()
+    print(f"   x.grad = {x.grad}")
+except RuntimeError as e:
+    print(f"   ERRO: {str(e)[:60]}...")
+
+# Causa 2: Tensor não-folha
+print("\\n2. Tensor não-folha (sem retain_grad):")
+x = torch.tensor([1.0], requires_grad=True)
+y = x * 2  # y é non-leaf
+z = y ** 2
 z.backward()
+print(f"   y.grad = {y.grad}")  # None!
+print(f"   x.grad = {x.grad}")  # OK
 
-print(f"x: {x.tolist()}")
-print(f"y: {y.tolist()}")
-print(f"z = x·y = {z.item()}")
-print(f"∂z/∂x = y = {x.grad.tolist()}")
-print(f"∂z/∂y = x = {y.grad.tolist()}")
+# Causa 3: Operação fora do grafo
+print("\\n3. Operação fora do grafo:")
+x = torch.tensor([1.0], requires_grad=True)
+with torch.no_grad():
+    y = x * 2
+print(f"   y.requires_grad = {y.requires_grad}")
+print(f"   y.grad_fn = {y.grad_fn}")
+
+# Causa 4: detach() cortou o grafo
+print("\\n4. detach() cortou o grafo:")
+x = torch.tensor([1.0], requires_grad=True)
+y = x.detach() ** 2
+try:
+    y.backward()
+except RuntimeError as e:
+    print(f"   ERRO: precisa de requires_grad em algum input")`}
 </CodeCell>
 
-## Gradiente de Multiplicação de Matrizes
+### Gradientes NaN e Inf
 
-<CodeCell id="matmul-grad">
-import torch
+<CodeCell id="debug-nan-inf">
+{`import torch
 
-# Z = X @ W (multiplicação de matrizes)
-X = torch.tensor([[1.0, 2.0], [3.0, 4.0]], requires_grad=True)
-W = torch.tensor([[5.0, 6.0], [7.0, 8.0]], requires_grad=True)
+print("Debugging: Gradientes NaN e Inf")
+print("=" * 50)
 
-Z = X @ W
-loss = Z.sum()  # Precisamos de um escalar para backward
+# Causa 1: Divisão por zero
+print("\\n1. Divisão por zero:")
+x = torch.tensor([0.0], requires_grad=True)
+y = 1.0 / x  # inf
+z = y ** 2
+z.backward()
+print(f"   1/0 = {y.item()}")
+print(f"   grad = {x.grad.item()}")
 
-loss.backward()
+# Causa 2: log(0) ou log(negativo)
+print("\\n2. log(0):")
+x = torch.tensor([0.0], requires_grad=True)
+y = torch.log(x + 1e-8)  # Adicione epsilon!
+y.backward()
+print(f"   log(1e-8) = {y.item():.2f}")
+print(f"   grad = {x.grad.item():.2f}")
 
-print("X:\n", X)
-print("\nW:\n", W)
-print("\nZ = X @ W:\n", Z)
-print("\n∂loss/∂X:\n", X.grad)
-print("\n∂loss/∂W:\n", W.grad)
+# Causa 3: Overflow em exp
+print("\\n3. Overflow em exp:")
+x = torch.tensor([100.0], requires_grad=True)
+y = torch.exp(x)  # inf
+y.backward()
+print(f"   exp(100) = {y.item()}")
+print(f"   grad = {x.grad.item()}")
+
+# Solução: Detectar e tratar
+print("\\n4. Detectando problemas:")
+def check_gradients(params):
+    for i, p in enumerate(params):
+        if p.grad is not None:
+            if torch.isnan(p.grad).any():
+                print(f"   WARNING: NaN no gradiente {i}")
+            if torch.isinf(p.grad).any():
+                print(f"   WARNING: Inf no gradiente {i}")
+
+params = [torch.tensor([float('inf')], requires_grad=True)]
+params[0].grad = torch.tensor([float('nan')])
+check_gradients(params)`}
 </CodeCell>
 
-## Gradient Descent Manual
+### Vanishing Gradients
 
-<CodeCell id="manual-gd">
-import torch
+<CodeCell id="debug-vanishing">
+{`import torch
+import torch.nn as nn
 
-# Dados sintéticos
-torch.manual_seed(0)
-X = torch.randn(100, 3)
-true_w = torch.tensor([2.0, -1.0, 0.5])
-y = X @ true_w + torch.randn(100) * 0.1
+print("Debugging: Vanishing Gradients")
+print("=" * 50)
 
-# Parâmetros iniciais
-w = torch.randn(3, requires_grad=True)
+# Demonstração com sigmoids em série
+print("\\nGradiente através de múltiplos sigmoids:")
+x = torch.tensor([1.0], requires_grad=True)
 
-lr = 0.1
-n_epochs = 50
+# Cadeia de sigmoids (cada um "esmaga" o gradiente)
+for n_layers in [1, 5, 10, 20]:
+    y = x.clone()
+    for _ in range(n_layers):
+        y = torch.sigmoid(y)
 
-print("Epoch | Loss    | w")
-print("-" * 40)
+    # Reset grad
+    if x.grad is not None:
+        x.grad.zero_()
 
+    y.backward()
+    print(f"  {n_layers:2d} layers: grad = {x.grad.item():.2e}")
+
+print("\\n→ Gradiente diminui exponencialmente com profundidade!")
+
+# Soluções comuns
+print("\\nSoluções para vanishing gradients:")
+print("  1. Use ReLU ao invés de sigmoid/tanh")
+print("  2. Batch Normalization")
+print("  3. Skip connections (ResNet)")
+print("  4. Inicialização adequada (Xavier, He)")`}
+</CodeCell>
+
+<Callout type="warning">
+**Sinais de problemas de gradiente:**
+- Loss não diminui (gradientes muito pequenos ou NaN)
+- Loss vai para inf (gradientes explosivos)
+- Loss oscila muito (learning rate muito alto)
+</Callout>
+
+## Gradientes de Ordem Superior
+
+### Segunda Derivada
+
+<CodeCell id="higher-order-basic">
+{`import torch
+
+# Para calcular d²y/dx², use create_graph=True na primeira derivada
+
+x = torch.tensor([3.0], requires_grad=True)
+
+# y = x³
+# dy/dx = 3x²
+# d²y/dx² = 6x
+
+y = x ** 3
+
+# Primeira derivada (mantém o grafo para segunda derivada)
+first_deriv = torch.autograd.grad(y, x, create_graph=True)[0]
+print(f"y = x³")
+print(f"dy/dx = 3x² = {first_deriv.item()} (esperado: 27)")
+
+# Segunda derivada
+second_deriv = torch.autograd.grad(first_deriv, x)[0]
+print(f"d²y/dx² = 6x = {second_deriv.item()} (esperado: 18)")`}
+</CodeCell>
+
+### Aplicação: Gradient Penalty (WGAN-GP)
+
+<CodeCell id="gradient-penalty">
+{`import torch
+
+print("Gradient Penalty (WGAN-GP):")
+print("=" * 50)
+
+# Gradient penalty requer calcular a norma do gradiente
+# e penalizar se não for ~1
+
+def gradient_penalty_demo(critic, real, fake):
+    """
+    Demonstração simplificada de gradient penalty.
+    Em WGAN-GP real, critic seria uma rede neural.
+    """
+    # Interpolação entre real e fake
+    alpha = torch.rand(1)
+    interpolated = alpha * real + (1 - alpha) * fake
+    interpolated.requires_grad_(True)
+
+    # Forward pass
+    critic_output = critic(interpolated)
+
+    # Calcular gradiente do output em relação ao input
+    grad = torch.autograd.grad(
+        outputs=critic_output,
+        inputs=interpolated,
+        grad_outputs=torch.ones_like(critic_output),
+        create_graph=True,  # Precisamos backprop através disso!
+        retain_graph=True
+    )[0]
+
+    # Penalizar se norma do gradiente != 1
+    grad_norm = grad.norm(2)
+    penalty = (grad_norm - 1) ** 2
+
+    return penalty
+
+# Exemplo com critic simples (linear)
+def simple_critic(x):
+    return (x ** 2).sum()
+
+real = torch.tensor([1.0, 2.0, 3.0])
+fake = torch.tensor([0.5, 1.5, 2.5])
+
+penalty = gradient_penalty_demo(simple_critic, real, fake)
+print(f"Gradient penalty: {penalty.item():.4f}")
+print("\\n→ Penalty = 0 quando ||∇critic|| = 1")`}
+</CodeCell>
+
+### Calculando a Hessiana
+
+<CodeCell id="hessian">
+{`import torch
+from torch.autograd.functional import hessian
+
+# Para funções escalares, podemos calcular a matriz Hessiana
+# H[i,j] = ∂²f/∂xᵢ∂xⱼ
+
+def f(x):
+    """f(x, y) = x² + xy + y²"""
+    return x[0]**2 + x[0]*x[1] + x[1]**2
+
+x = torch.tensor([1.0, 2.0])
+
+# Calcular Hessiana
+H = hessian(f, x)
+
+print("f(x, y) = x² + xy + y²")
+print(f"\\nEm (1, 2):")
+print(f"Hessiana H:")
+print(H)
+print("""
+Análise:
+  ∂²f/∂x² = 2
+  ∂²f/∂y² = 2
+  ∂²f/∂x∂y = 1
+""")`}
+</CodeCell>
+
+## torch.no_grad() e inference_mode()
+
+### Comparação de Performance
+
+<CodeCell id="no-grad-performance">
+{`import torch
+import time
+
+# Comparação de performance entre modos
+
+def benchmark(mode, iterations=1000):
+    x = torch.randn(1000, 1000, requires_grad=True)
+
+    start = time.time()
+
+    if mode == "with_grad":
+        for _ in range(iterations):
+            y = x @ x.T
+    elif mode == "no_grad":
+        with torch.no_grad():
+            for _ in range(iterations):
+                y = x @ x.T
+    elif mode == "inference_mode":
+        with torch.inference_mode():
+            for _ in range(iterations):
+                y = x @ x.T
+
+    return time.time() - start
+
+print("Benchmark: 1000x1000 matmul, 1000 iterações")
+print("=" * 50)
+
+time_grad = benchmark("with_grad")
+time_no_grad = benchmark("no_grad")
+time_inference = benchmark("inference_mode")
+
+print(f"Com gradientes:     {time_grad:.3f}s")
+print(f"torch.no_grad():    {time_no_grad:.3f}s ({time_grad/time_no_grad:.1f}x mais rápido)")
+print(f"inference_mode():   {time_inference:.3f}s ({time_grad/time_inference:.1f}x mais rápido)")`}
+</CodeCell>
+
+### Quando Usar Cada Um
+
+<CodeCell id="when-to-use">
+{`import torch
+
+print("Quando usar cada modo:")
+print("=" * 50)
+
+# 1. torch.no_grad() - Durante desenvolvimento/validação
+print("""
+1. torch.no_grad():
+   - Validação durante treinamento
+   - Update de parâmetros (dentro de training loop)
+   - Quando pode precisar voltar a calcular gradientes depois
+
+   Exemplo:
+   ```
+   model.eval()
+   with torch.no_grad():
+       for batch in val_loader:
+           output = model(batch)
+           val_loss += loss_fn(output, target)
+   ```
+""")
+
+# 2. inference_mode() - Produção
+print("""
+2. torch.inference_mode():
+   - Deploy/Produção
+   - Inferência em larga escala
+   - Quando você NUNCA vai precisar de gradientes
+
+   Exemplo:
+   ```
+   model.eval()
+   with torch.inference_mode():
+       predictions = model(test_data)
+   ```
+""")
+
+# 3. requires_grad_(False) - Freezing permanente
+print("""
+3. requires_grad_(False):
+   - Transfer learning (congelar backbone)
+   - Parte do modelo que nunca será treinada
+
+   Exemplo:
+   ```
+   for param in model.backbone.parameters():
+       param.requires_grad_(False)
+   ```
+""")`}
+</CodeCell>
+
+## Projeto Prático: Training Loop Completo
+
+Vamos implementar um training loop completo do zero, aplicando tudo que aprendemos:
+
+<CodeCell id="complete-training-loop">
+{`import torch
+import torch.nn as nn
+
+# ============================================
+# 1. CONFIGURAÇÃO
+# ============================================
+torch.manual_seed(42)
+
+# Hiperparâmetros
+n_samples = 200
+n_features = 5
+n_epochs = 100
+learning_rate = 0.01
+max_grad_norm = 1.0  # Para gradient clipping
+
+# ============================================
+# 2. DADOS SINTÉTICOS
+# ============================================
+# y = Xw + b + ruído
+true_w = torch.tensor([2.0, -1.5, 1.0, -0.5, 0.3])
+true_b = torch.tensor([0.5])
+
+X = torch.randn(n_samples, n_features)
+y = X @ true_w + true_b + torch.randn(n_samples) * 0.2
+
+# ============================================
+# 3. MODELO (simples, sem nn.Module)
+# ============================================
+w = torch.randn(n_features, requires_grad=True)
+b = torch.zeros(1, requires_grad=True)
+
+# ============================================
+# 4. TRAINING LOOP
+# ============================================
+print("Training Loop Completo")
+print("=" * 50)
+print(f"Epochs: {n_epochs}, LR: {learning_rate}, Grad clip: {max_grad_norm}")
+print("-" * 50)
+
+losses = []
 for epoch in range(n_epochs):
-    # Forward
-    pred = X @ w
-    loss = ((pred - y) ** 2).mean()
+    # Forward pass
+    y_pred = X @ w + b
 
-    # Backward
+    # Calcular loss (MSE)
+    loss = ((y_pred - y) ** 2).mean()
+    losses.append(loss.item())
+
+    # Backward pass
     loss.backward()
 
-    # Update
+    # Gradient clipping
+    total_norm = torch.sqrt(w.grad.pow(2).sum() + b.grad.pow(2).sum())
+    if total_norm > max_grad_norm:
+        scale = max_grad_norm / total_norm
+        w.grad *= scale
+        b.grad *= scale
+
+    # Detectar problemas
+    if torch.isnan(w.grad).any() or torch.isnan(b.grad).any():
+        print(f"WARNING: NaN gradient at epoch {epoch}")
+        break
+
+    # Update parameters
     with torch.no_grad():
-        w -= lr * w.grad
+        w -= learning_rate * w.grad
+        b -= learning_rate * b.grad
 
     # Zero gradients
     w.grad.zero_()
+    b.grad.zero_()
 
-    if epoch % 10 == 0:
-        print(f"{epoch:5d} | {loss.item():.5f} | {w.detach().tolist()}")
+    # Log
+    if (epoch + 1) % 20 == 0:
+        print(f"Epoch {epoch+1:3d} | Loss: {loss.item():.6f}")
 
-print(f"\nw aprendido: {w.detach().tolist()}")
-print(f"w verdadeiro: {true_w.tolist()}")
+# ============================================
+# 5. RESULTADOS
+# ============================================
+print("-" * 50)
+print(f"Loss final: {losses[-1]:.6f}")
+print(f"\\nParâmetros aprendidos vs verdadeiros:")
+print(f"w: {w.detach().numpy().round(2)} vs {true_w.numpy()}")
+print(f"b: {b.item():.2f} vs {true_b.item()}")`}
+</CodeCell>
+
+### Versão com Validação e Early Stopping
+
+<CodeCell id="training-with-validation">
+{`import torch
+
+torch.manual_seed(42)
+
+# Dados
+n_train, n_val = 160, 40
+X = torch.randn(200, 5)
+y = X @ torch.tensor([2.0, -1.5, 1.0, -0.5, 0.3]) + 0.5 + torch.randn(200) * 0.2
+
+# Split
+X_train, X_val = X[:n_train], X[n_train:]
+y_train, y_val = y[:n_train], y[n_train:]
+
+# Modelo
+w = torch.randn(5, requires_grad=True)
+b = torch.zeros(1, requires_grad=True)
+
+# Treinamento com early stopping
+lr = 0.01
+best_val_loss = float('inf')
+patience = 10
+patience_counter = 0
+
+print("Training com Validação e Early Stopping")
+print("=" * 50)
+
+for epoch in range(200):
+    # === TRAIN ===
+    y_pred = X_train @ w + b
+    train_loss = ((y_pred - y_train) ** 2).mean()
+
+    train_loss.backward()
+
+    with torch.no_grad():
+        w -= lr * w.grad
+        b -= lr * b.grad
+    w.grad.zero_()
+    b.grad.zero_()
+
+    # === VALIDATION (sem gradientes!) ===
+    with torch.no_grad():
+        y_val_pred = X_val @ w + b
+        val_loss = ((y_val_pred - y_val) ** 2).mean()
+
+    # Early stopping check
+    if val_loss < best_val_loss:
+        best_val_loss = val_loss
+        patience_counter = 0
+        best_w = w.detach().clone()
+        best_b = b.detach().clone()
+    else:
+        patience_counter += 1
+
+    if (epoch + 1) % 20 == 0:
+        print(f"Epoch {epoch+1:3d} | Train: {train_loss.item():.4f} | Val: {val_loss.item():.4f}")
+
+    if patience_counter >= patience:
+        print(f"\\nEarly stopping at epoch {epoch+1}")
+        break
+
+print(f"\\nMelhor val_loss: {best_val_loss.item():.4f}")`}
 </CodeCell>
 
 ## Exercícios
 
-<Exercise id="ex-manual-verify" difficulty="medium">
+Agora é sua vez de praticar! Aplique o que aprendeu neste módulo.
+
+<Exercise id="ex-manual-verify" difficulty="easy">
 Calcule manualmente e verifique com PyTorch o gradiente de f(x) = e^(x²) em x = 1. A derivada é 2x·e^(x²). Armazene o gradiente em `gradient`.
 </Exercise>
 
-<Exercise id="ex-multi-var" difficulty="hard">
+<Exercise id="ex-numerical-check" difficulty="easy">
+Use diferenças finitas para verificar o gradiente de f(x) = sin(x) em x = π/4. Compare com o autograd. O resultado deve ser próximo de cos(π/4) ≈ 0.707. Armazene o gradiente do autograd em `autograd_result`.
+</Exercise>
+
+<Exercise id="ex-autograd-grad" difficulty="medium">
+Use `torch.autograd.grad()` para calcular o gradiente de y = x³ em x = 2 SEM modificar x.grad. Armazene o resultado em `gradient`. (Resposta: 12)
+</Exercise>
+
+<Exercise id="ex-multi-var" difficulty="medium">
 Para a função f(x, y) = x²y + xy² em (x=2, y=3), calcule ∂f/∂x e ∂f/∂y. Armazene em `grad_x` e `grad_y`.
 Dicas: ∂f/∂x = 2xy + y², ∂f/∂y = x² + 2xy
 </Exercise>
 
+<Exercise id="ex-gradient-clipping" difficulty="medium">
+Crie um tensor com gradiente grande (>100) e aplique gradient clipping para que a norma seja no máximo 1.0. Armazene a norma final em `clipped_norm`.
+</Exercise>
+
+<Exercise id="ex-second-deriv" difficulty="hard">
+Calcule a segunda derivada de f(x) = x⁴ em x = 2. Use `create_graph=True`. A primeira derivada é 4x³, a segunda é 12x². Em x=2: f''(2) = 48. Armazene em `second_derivative`.
+</Exercise>
+
+<Exercise id="ex-training-step" difficulty="hard">
+Implemente uma iteração completa de gradient descent com clipping:
+1. Forward: y_pred = w * x (x=2, w=5 inicial)
+2. Loss: (y_pred - target)² onde target=6
+3. Backward
+4. Clip grad para max_norm=1.0
+5. Update: w = w - 0.1 * w.grad
+Armazene o novo valor de w em `w_updated`.
+</Exercise>
+
 ## Resumo
 
-Neste módulo você aprendeu:
-- Como verificar gradientes manualmente
-- Gradientes de funções vetoriais
-- Regra da cadeia aplicada automaticamente
-- Gradientes através de operações de redução
-- Gradientes de produto escalar e multiplicação de matrizes
-- Gradient descent implementado do zero
+Neste módulo você aprendeu técnicas práticas essenciais para trabalhar com gradientes:
 
-Você completou a Seção 2: Autograd! No próximo módulo, vamos começar a construir redes neurais com nn.Module.
+### Técnicas Aprendidas
+
+| Técnica | Uso |
+|---------|-----|
+| Verificação Manual | Confirmar cálculos do autograd |
+| Diferenças Finitas | Testar implementações customizadas |
+| `torch.autograd.grad()` | Alternativa funcional ao .backward() |
+| Gradient Clipping | Estabilizar treinamento |
+| Debugging NaN/Inf | Identificar problemas numéricos |
+| Gradientes de Ordem Superior | MAML, gradient penalty, etc. |
+
+### Padrão de Training Loop
+
+```python
+for epoch in range(num_epochs):
+    # Forward
+    output = model(input)
+    loss = loss_fn(output, target)
+
+    # Backward
+    optimizer.zero_grad()
+    loss.backward()
+
+    # Clip (opcional)
+    torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm)
+
+    # Update
+    optimizer.step()
+
+    # Validation (sem gradientes!)
+    with torch.no_grad():
+        val_output = model(val_input)
+```
+
+### Checklist de Debugging
+
+<Callout type="warning">
+Quando seus gradientes estiverem estranhos, verifique:
+- [ ] `requires_grad=True` nos parâmetros?
+- [ ] Operações dentro de `no_grad()` que não deveriam?
+- [ ] Divisão por zero ou log(0)?
+- [ ] Gradientes acumulando sem zerar?
+- [ ] Learning rate muito alto/baixo?
+</Callout>
+
+<Callout type="tip">
+**Parabéns!** Você completou a Seção 2: Autograd! Agora você tem uma compreensão sólida de como o PyTorch calcula gradientes automaticamente. No próximo módulo, vamos começar a construir redes neurais reais usando `nn.Module`!
+</Callout>

@@ -15,6 +15,22 @@
     },
     "solution": "y = x ** 3\ny.backward()\ngradient = x.grad"
   },
+  "ex-verify-grad": {
+    "starterCode": "import torch\n\n# Crie x com requires_grad=True\nx = torch.tensor([4.0], requires_grad=True)\n\n# Calcule y = 2*x + 5\ny = \n\n# Faça backward\n\n\n# Extraia o gradiente (deve ser 2, a derivada de 2x+5)\ngradient = ",
+    "hints": [
+      "y = 2 * x + 5",
+      "Chame y.backward() para calcular o gradiente",
+      "A derivada de 2x + 5 é simplesmente 2",
+      "O gradiente está armazenado em x.grad"
+    ],
+    "validation": {
+      "type": "assert",
+      "tests": [
+        "assert gradient.item() == 2.0, f'Gradiente incorreto: esperado 2.0, obtido {gradient.item()}'"
+      ]
+    },
+    "solution": "y = 2 * x + 5\ny.backward()\ngradient = x.grad"
+  },
   "ex-chain": {
     "starterCode": "import torch\n\nx = torch.tensor([2.0], requires_grad=True)\n\n# Calcule y = x² + 3x\ny = \n\n# Faça backward e extraia o gradiente\n\ngrad_y = ",
     "hints": [
@@ -45,5 +61,58 @@
       ]
     },
     "solution": "x.grad.zero_()\ncorrect_grad = x.grad"
+  },
+  "ex-multi-param": {
+    "starterCode": "import torch\n\n# Dois parâmetros\na = torch.tensor([2.0], requires_grad=True)\nb = torch.tensor([3.0], requires_grad=True)\n\n# Calcule y = a² * b\ny = \n\n# Faça backward\n\n\n# Extraia os gradientes\n# dy/da = 2ab = 2*2*3 = 12\n# dy/db = a² = 4\ngrad_a = \ngrad_b = ",
+    "hints": [
+      "y = (a ** 2) * b ou y = a**2 * b",
+      "Chame y.backward() para calcular gradientes de ambos",
+      "dy/da = 2*a*b = 2*2*3 = 12",
+      "dy/db = a² = 2² = 4"
+    ],
+    "validation": {
+      "type": "assert",
+      "tests": [
+        "assert grad_a.item() == 12.0, f'grad_a incorreto: esperado 12.0, obtido {grad_a.item()}'",
+        "assert grad_b.item() == 4.0, f'grad_b incorreto: esperado 4.0, obtido {grad_b.item()}'"
+      ]
+    },
+    "solution": "y = a**2 * b\ny.backward()\ngrad_a = a.grad\ngrad_b = b.grad"
+  },
+  "ex-training-step": {
+    "starterCode": "import torch\n\n# Parâmetro a ser otimizado\nx = torch.tensor([5.0], requires_grad=True)\n\n# Alvo\ntarget = torch.tensor([0.0])\n\n# Hiperparâmetro\nlearning_rate = 0.1\n\n# Calcule a loss = (x - target)²\nloss = \n\n# Faça backward\n\n\n# Atualize x usando gradient descent\n# IMPORTANTE: Use torch.no_grad() para não rastrear esta operação!\n\n\n# Armazene o novo valor de x\n# Esperado: 5 - 0.1 * 10 = 4.0 (grad de (x-0)² é 2x = 10)\nx_updated = ",
+    "hints": [
+      "loss = (x - target) ** 2",
+      "Chame loss.backward() para calcular o gradiente",
+      "O gradiente de (x-0)² é 2x = 2*5 = 10",
+      "Use 'with torch.no_grad():' e depois 'x -= learning_rate * x.grad'",
+      "x_updated deve ser x.item() ou x.detach().clone()"
+    ],
+    "validation": {
+      "type": "assert",
+      "tests": [
+        "assert abs(x_updated - 4.0) < 0.001, f'x_updated incorreto: esperado 4.0, obtido {x_updated}'"
+      ]
+    },
+    "solution": "loss = (x - target) ** 2\nloss.backward()\nwith torch.no_grad():\n    x -= learning_rate * x.grad\nx_updated = x.item()"
+  },
+  "ex-freeze-param": {
+    "starterCode": "import torch\n\n# Parâmetro que queremos CONGELAR\nfrozen = torch.tensor([1.0], requires_grad=True)\n\n# Parâmetro que queremos TREINAR\ntrainable = torch.tensor([2.0], requires_grad=True)\n\n# IMPORTANTE: Congele o parâmetro 'frozen' aqui!\n\n\n# Calcule y = frozen * trainable\ny = \n\n# Faça backward\n\n\n# Verifique: frozen.grad deve ser None, trainable.grad deve ter valor\n# Armazene o gradiente ativo\nactive_grad = ",
+    "hints": [
+      "Use frozen.requires_grad_(False) para congelar",
+      "Isso deve ser feito ANTES de usar frozen na operação",
+      "y = frozen * trainable",
+      "Após backward(), frozen.grad será None e trainable.grad terá valor",
+      "active_grad = trainable.grad"
+    ],
+    "validation": {
+      "type": "assert",
+      "tests": [
+        "assert frozen.grad is None, 'frozen.grad deveria ser None (parâmetro congelado)'",
+        "assert active_grad is not None, 'active_grad não deveria ser None'",
+        "assert active_grad.item() == 1.0, f'active_grad incorreto: esperado 1.0, obtido {active_grad.item()}'"
+      ]
+    },
+    "solution": "frozen.requires_grad_(False)\ny = frozen * trainable\ny.backward()\nactive_grad = trainable.grad"
   }
 }
